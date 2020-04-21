@@ -1,5 +1,5 @@
 import CookieUtils from '../../src/cookie-filtering/utils';
-import { Cookie } from '../../src/cookie-filtering/cookie';
+import { CookieHeader } from '../../src/cookie-filtering/cookie-header';
 
 describe('Cookie utils - Cookie parsing', () => {
     it('checks parse simple', () => {
@@ -75,14 +75,14 @@ describe('Cookie utils - Set-Cookie parsing', () => {
 
 describe('Cookie utils - Serializing', () => {
     it('checks serialize simple', () => {
-        const cookie = new Cookie('_octo', 'GH1.1.635223982.1507661197');
+        const cookie = new CookieHeader('_octo', 'GH1.1.635223982.1507661197');
 
         const result = CookieUtils.serialize(cookie);
         expect(result).toBe('_octo=GH1.1.635223982.1507661197');
     });
 
     it('checks serialize complicated', () => {
-        const cookie = new Cookie('_octo', 'GH1.1.635223982.1507661197');
+        const cookie = new CookieHeader('_octo', 'GH1.1.635223982.1507661197');
         cookie.path = '/';
         cookie.expires = new Date('Tue, 23 Oct 2018 13:40:11 -0000');
         cookie.secure = true;
@@ -99,28 +99,28 @@ describe('Cookie utils - Serializing', () => {
 
     it('checks serialize invalid', () => {
         expect(() => {
-            CookieUtils.serialize(new Cookie('тест', 'invalid'));
+            CookieUtils.serialize(new CookieHeader('тест', 'invalid'));
         }).toThrowError(/Cookie name is invalid: */);
 
         expect(() => {
-            CookieUtils.serialize(new Cookie('test', 'тест'));
+            CookieUtils.serialize(new CookieHeader('test', 'тест'));
         }).toThrowError(/Cookie value is invalid: */);
 
         expect(() => {
-            const cookie = new Cookie('test', 'test');
+            const cookie = new CookieHeader('test', 'test');
             cookie.path = 'тест';
             CookieUtils.serialize(cookie);
         }).toThrowError(/Cookie path is invalid: */);
 
         expect(() => {
-            const cookie = new Cookie('test', 'test');
+            const cookie = new CookieHeader('test', 'test');
             cookie.domain = 'тест';
             CookieUtils.serialize(cookie);
         }).toThrowError(/Cookie domain is invalid: */);
     });
 
     it('checks serialize invalid same site', () => {
-        const cookie = new Cookie('test', 'invalid');
+        const cookie = new CookieHeader('test', 'invalid');
         cookie.sameSite = 'invalid';
 
         expect(() => {

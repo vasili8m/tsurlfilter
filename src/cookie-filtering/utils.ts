@@ -1,5 +1,6 @@
 /* eslint-disable prefer-template */
 import { Cookie } from './cookie';
+import { CookieHeader } from './cookie-header';
 
 /**
  * Helper methods for parsing and extracting browser cookies from headers (both Set-Cookie and Cookie).
@@ -53,7 +54,7 @@ export default class CookieUtils {
      * @param setCookieValue "Set-Cookie" header value to parse
      * @returns cookie object or null if it failed to parse the value
      */
-    public static parseSetCookie(setCookieValue: string): Cookie | null {
+    public static parseSetCookie(setCookieValue: string): CookieHeader | null {
         if (!setCookieValue) {
             return null;
         }
@@ -64,7 +65,7 @@ export default class CookieUtils {
         const name = nameValue.shift();
         // everything after the first =, joined by a "=" if there was more than one part
         const value = nameValue.join('=');
-        const cookie = new Cookie(name!, value);
+        const cookie = new CookieHeader(name!, value);
 
         parts.forEach((part) => {
             const sides = part.split('=');
@@ -95,7 +96,7 @@ export default class CookieUtils {
      * @return Set-Cookie string or null if it failed to serialize object
      * @throws Thrown in case of invalid input data
      */
-    public static serialize(cookie: Cookie): string {
+    public static serialize(cookie: CookieHeader): string {
         // 1. Validate fields
         if (!CookieUtils.FIELD_CONTENT_REGEX.test(cookie.name)) {
             throw new TypeError(`Cookie name is invalid: ${cookie.name}`);
