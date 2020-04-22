@@ -110,9 +110,6 @@ export default class CookieUtils {
         if (cookie.path && !CookieUtils.FIELD_CONTENT_REGEX.test(cookie.path)) {
             throw new TypeError(`Cookie path is invalid: ${cookie.path}`);
         }
-        if (cookie.expires && typeof cookie.expires.toUTCString !== 'function') {
-            throw new TypeError(`Cookie expires is invalid: ${cookie.expires}`);
-        }
 
         // 2. Build Set-Cookie header value
         let setCookieValue = `${cookie.name}=${cookie.value}`;

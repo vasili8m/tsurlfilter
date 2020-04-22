@@ -5,23 +5,11 @@
 import { TextDecoder, TextEncoder } from 'text-encoding';
 import { MockStreamFilter } from './mock-stream-filter';
 import {
-    ContentFiltering, IRule, NetworkRule, Request, RequestType,
+    ContentFiltering, NetworkRule, Request, RequestType,
 } from '../../src';
 import { CosmeticRule } from '../../src/rules/cosmetic-rule';
 import { DEFAULT_CHARSET, parseCharsetFromHeader, WIN_1251 } from '../../src/content-filtering/charsets';
-import { FilteringLog } from '../../src/filtering-log';
-
-class MockFilteringLog implements FilteringLog {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    addHtmlEvent = jest.fn((tabId: number, innerHTML: string, frameUrl: string | null, rule: IRule) => {
-        // Do nothing
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    addReplaceRulesEvent = jest.fn((tabId: number, frameUrl: string | null, appliedRules: IRule[]) => {
-        // Do nothing
-    });
-}
+import { MockFilteringLog } from '../mock-filtering-log';
 
 const createTestRequest = (requestType?: RequestType): Request => {
     const type = requestType ? requestType! : RequestType.Document;

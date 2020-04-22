@@ -97,6 +97,24 @@ describe('Cookie utils - Serializing', () => {
         expect(result).toBe('_octo=GH1.1.635223982.1507661197; Max-Age=100; Domain=test; Path=/; Expires=Tue, 23 Oct 2018 13:40:11 GMT; HttpOnly; Secure; SameSite=Lax; Priority=test');
     });
 
+    it('checks serialize sameSite', () => {
+        const cookie = new CookieHeader('test', 'test');
+        cookie.sameSite = 'lax';
+
+        expect(CookieUtils.serialize(cookie)).toBe('test=test; SameSite=Lax');
+
+        cookie.sameSite = 'strict';
+        expect(CookieUtils.serialize(cookie)).toBe('test=test; SameSite=Strict');
+
+        cookie.sameSite = 'none';
+        expect(CookieUtils.serialize(cookie)).toBe('test=test; SameSite=None');
+
+        cookie.sameSite = 'invalid';
+        expect(() => {
+            CookieUtils.serialize(cookie);
+        }).toThrowError();
+    });
+
     it('checks serialize invalid', () => {
         expect(() => {
             CookieUtils.serialize(new CookieHeader('тест', 'invalid'));

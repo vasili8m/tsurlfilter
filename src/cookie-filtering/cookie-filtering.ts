@@ -113,8 +113,10 @@ export class CookieFiltering {
         let iCookies = cookies.length;
         // modifying cookies here is safe because we're iterating in reverse order
         // eslint-disable-next-line no-cond-assign
-        while (iCookies -= 1) {
+        while (iCookies > 0) {
+            iCookies -= 1;
             const cookie = cookies[iCookies];
+
             const cookieName = cookie.name;
 
             const bRule = CookieFiltering.lookupNotModifyingRule(cookieName, cookieRules);
@@ -268,7 +270,8 @@ export class CookieFiltering {
 
         let iValues = values.length;
         // eslint-disable-next-line no-cond-assign
-        while (iValues -= 1) {
+        while (iValues > 0) {
+            iValues -= 1;
             const value = values[iValues];
             // eslint-disable-next-line prefer-destructuring
             const cookie = value.cookie;
