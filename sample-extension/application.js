@@ -2,6 +2,7 @@
 import * as AGUrlFilter from './engine.js';
 import { applyCss, applyScripts } from './cosmetic.js';
 import { FilteringLog } from './filtering-log/filtering-log.js';
+import { CookieApi } from './cookie/cookie-api.js';
 
 /**
  * Extension application class
@@ -34,6 +35,11 @@ export class Application {
     contentFiltering = null;
 
     /**
+     * Cookie filtering module
+     */
+    cookieFiltering = null;
+
+    /**
      * Initializes engine instance
      *
      * @param rulesText
@@ -52,6 +58,7 @@ export class Application {
 
         this.engine = new AGUrlFilter.Engine(ruleStorage, config);
         this.contentFiltering = new AGUrlFilter.ContentFiltering(this.filteringLog);
+        this.cookieFiltering = new AGUrlFilter.CookieFiltering(new CookieApi(this.browser), this.filteringLog);
 
         console.log('Starting url filter engine..ok');
     }
@@ -122,16 +129,19 @@ export class Application {
     onResponseHeadersReceived(details) {
         let responseHeaders = details.responseHeaders || [];
 
+        const requestType = Application.transformRequestType(details.type);
+
+        // TODO: Refactor request constructor
+        const request = new AGUrlFilter.Request(details.url, details.initiator, requestType);
+        request.requestId = details.requestId;
+        request.tabId = details.tabId;
+
         // Apply Html filtering and replace rules
         if (this.responseContentFilteringSupported) {
             const contentType = Application.getHeaderValueByName(responseHeaders, 'content-type');
-            const replaceRules = this.getReplaceRules(details);
+            const replaceRules = this.getReplaceRules(request);
             const htmlRules = this.getHtmlRules(details);
 
-            const requestType = Application.transformRequestType(details.type);
-            const request = new AGUrlFilter.Request(details.url, details.initiator, requestType);
-            request.requestId = details.requestId;
-            request.tabId = details.tabId;
             request.statusCode = details.statusCode;
             request.method = details.method;
 
@@ -155,8 +165,7 @@ export class Application {
             }
         }
 
-        const cookieRules = this.getCookieRules(details);
-        if (this.processHeaders(details, responseHeaders, cookieRules)) {
+        if (this.processResponseHeaders(request, responseHeaders)) {
             responseHeadersModified = true;
         }
 
@@ -176,10 +185,13 @@ export class Application {
     onBeforeSendHeaders(details) {
         const requestHeaders = details.requestHeaders || [];
 
-        let requestHeadersModified = false;
+        const requestType = Application.transformRequestType(details.type);
+        const request = new AGUrlFilter.Request(details.url, details.initiator, requestType);
+        request.requestId = details.requestId;
+        request.tabId = details.tabId;
 
-        const cookieRules = this.getCookieRules(details);
-        if (this.processHeaders(details, requestHeaders, cookieRules)) {
+        let requestHeadersModified = false;
+        if (this.processRequestHeaders(request, requestHeaders)) {
             requestHeadersModified = true;
         }
 
@@ -190,37 +202,86 @@ export class Application {
     }
 
     /**
-     * Returns cookie rules matching request details
+     * Wrapper for webRequest.onCompleted event
      *
      * @param details
+     */
+    onCompleted(details) {
+        console.debug('Processing onCompleted event');
+
+        // Permission is not granted
+        if (!this.browser.cookies) {
+            return false;
+        }
+
+        return this.cookieFiltering.modifyCookies(details.requestId);
+    }
+
+    /**
+     * Wrapper for webRequest.onErrorOccurred event
+     *
+     * @param details
+     */
+    onErrorOccurred(details) {
+        console.debug('Processing onErrorOccurred event');
+
+        // Permission is not granted
+        if (!this.browser.cookies) {
+            return false;
+        }
+
+        return this.cookieFiltering.modifyCookies(details.requestId);
+    }
+
+    /**
+     * Returns cookie rules matching request details
+     *
+     * @param request
      * @return {NetworkRule[]}
      */
-    getCookieRules(details) {
-        const request = new AGUrlFilter.Request(details.url, details.initiator, AGUrlFilter.RequestType.Document);
+    getCookieRules(request) {
         const result = this.engine.matchRequest(request);
-
         return result.getCookieRules();
     }
 
     /**
-     * Modifies cookie header
+     * Modifies request headers
      *
-     * @param details
+     * @param request
      * @param headers
-     * @param cookieRules
      * @return {null}
      */
-    processHeaders(details, headers, cookieRules) {
-        console.debug('Processing headers');
+    processRequestHeaders(request, headers) {
+        console.debug('Processing request headers');
         console.debug(headers);
 
-        cookieRules.forEach((r) => {
-            this.filteringLog.addCookieEvent(details.tabId, details.url, r);
-        });
+        // Permission is not granted
+        if (!this.browser.cookies) {
+            return false;
+        }
 
-        // TODO: Modify cookie header
+        const cookieRules = this.getCookieRules(request);
+        return this.cookieFiltering.processRequestHeaders(request, headers, cookieRules);
+    }
 
-        return null;
+    /**
+     * Modifies request headers
+     *
+     * @param request
+     * @param headers
+     * @return {null}
+     */
+    processResponseHeaders(request, headers) {
+        console.debug('Processing response headers');
+        console.debug(headers);
+
+        // Permission is not granted
+        if (!this.browser.cookies) {
+            return false;
+        }
+
+        const cookieRules = this.getCookieRules(request);
+        return this.cookieFiltering.processResponseHeaders(request, headers, cookieRules);
     }
 
     /**
@@ -251,12 +312,10 @@ export class Application {
     /**
      * Returns replace rules matching request details
      *
-     * @param details
+     * @param request
      */
-    getReplaceRules(details) {
-        // TODO: Cache request - matching results
-
-        const request = new AGUrlFilter.Request(details.url, details.initiator, AGUrlFilter.RequestType.Document);
+    getReplaceRules(request) {
+        // TODO: Cache match result at on before request step
         const result = this.engine.matchRequest(request);
 
         return result.getReplaceRules();

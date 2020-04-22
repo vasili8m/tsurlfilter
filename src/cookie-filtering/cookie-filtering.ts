@@ -1,5 +1,6 @@
 import { Request } from '../request';
-import { FilteringLog, NetworkRule } from '..';
+import { FilteringLog } from '../filtering-log';
+import { NetworkRule } from '../rules/network-rule';
 import CookieUtils from './utils';
 import { CookieModifier } from '../modifiers/cookie-modifier';
 import { CookieHeader } from './cookie-header';
@@ -28,10 +29,18 @@ export interface CookieApi {
     /**
      * Modifies cookie
      *
+     * @param setCookie
+     * @param url
+     */
+    modifyCookie(setCookie: any, url: string): void;
+
+    /**
+     * Fetch cookies
+     *
      * @param name
      * @param url
      */
-    modifyCookie(name: string, url: string): void;
+    getCookies(name: string, url: string): CookieHeader[];
 }
 
 /**
@@ -63,7 +72,8 @@ export class CookieFiltering {
     /**
      * Contains cookie to modify for each request
      */
-    private cookiesMap: Map<number, { remove: boolean;cookie: { name: string; url: string }}[]> = new Map();
+    // eslint-disable-next-line max-len
+    private cookiesMap: Map<number, { remove: boolean;cookie: { name: string; url: string };rules: NetworkRule[]}[]> = new Map();
 
     /**
      * Cookie api implementation
@@ -125,12 +135,12 @@ export class CookieFiltering {
                     cookies.splice(iCookies, 1);
                     cookieHeaderModified = true;
                 }
-                this.scheduleProcessingCookie(requestId!, cookieName, url, true);
+                this.scheduleProcessingCookie(requestId!, cookieName, url, [bRule], true);
             }
 
             const mRules = CookieFiltering.lookupModifyingRules(cookieName, cookieRules);
             if (mRules && mRules.length > 0) {
-                this.scheduleProcessingCookie(requestId!, cookieName, url, false);
+                this.scheduleProcessingCookie(requestId!, cookieName, url, mRules, false);
             }
         }
 
@@ -228,11 +238,33 @@ export class CookieFiltering {
             if (value.remove) {
                 this.cookieManager.removeCookie(cookie.name, cookie.url);
             } else {
-                this.cookieManager.modifyCookie(cookie.name, cookie.url);
+                this.modifyCookie(cookie.name, cookie.url, value.rules);
             }
         }
 
         this.cookiesMap.delete(requestId);
+    }
+
+    /**
+     * Modifies cookie with rules
+     *
+     * @param name
+     * @param url
+     * @param rules
+     */
+    private modifyCookie(name: string, url: string, rules: NetworkRule[]) {
+        const cookies = this.cookieManager.getCookies(name, url);
+        for (let i = 0; i < cookies.length; i += 1) {
+            const cookie = cookies[i];
+
+            const setCookie = cookie as CookieHeader;
+            if (setCookie) {
+                const mRules = CookieFiltering.applyRuleToSetCookieHeaderValue(setCookie, rules);
+                if (mRules && mRules.length > 0) {
+                    this.cookieManager.modifyCookie(cookie, url);
+                }
+            }
+        }
     }
 
     /**
@@ -241,9 +273,16 @@ export class CookieFiltering {
      * @param {string} requestId
      * @param {string} name
      * @param {string} url
+     * @param rules
      * @param {boolean} remove
      */
-    private scheduleProcessingCookie(requestId: number, name: string, url: string, remove: boolean): void {
+    private scheduleProcessingCookie(
+        requestId: number,
+        name: string,
+        url: string,
+        rules: NetworkRule[],
+        remove: boolean,
+    ): void {
         let values = this.cookiesMap.get(requestId);
         if (!values) {
             values = [];
@@ -253,6 +292,7 @@ export class CookieFiltering {
         values.push({
             remove,
             cookie: { name, url },
+            rules,
         });
     }
 
@@ -321,6 +361,7 @@ export class CookieFiltering {
      * @param setCookie Cookie header to modify
      * @param rules Cookie matching rules
      * @return applied rules
+     *
      */
     private static applyRuleToSetCookieHeaderValue(setCookie: CookieHeader, rules: NetworkRule[]): NetworkRule[] {
         const appliedRules = [];
