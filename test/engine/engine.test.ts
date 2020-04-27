@@ -244,7 +244,7 @@ describe('TestEngineCosmeticResult - js', () => {
 });
 
 
-describe('Test badfilter modificator', () => {
+describe('Test badfilter modifier', () => {
     it('works if badfilter is ok', () => {
         const rules = [
             '/some-url$domain=example.org',
