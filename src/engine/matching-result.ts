@@ -107,13 +107,6 @@ export class MatchingResult {
         this.cspRules = null;
         this.stealthRule = null;
 
-        // eslint-disable-next-line no-param-reassign
-        rules = MatchingResult.removeBadfilterRules(rules);
-        if (sourceRules) {
-            // eslint-disable-next-line no-param-reassign
-            sourceRules = MatchingResult.removeBadfilterRules(sourceRules);
-        }
-
         // First of all, find document-level whitelist rules
         if (sourceRules) {
             sourceRules.forEach((r) => {
@@ -402,38 +395,5 @@ export class MatchingResult {
         }
 
         map.set(cspDirective!, newRule);
-    }
-
-    /**
-     * Looks if there are any matching $badfilter rules and removes
-     * matching bad filters from the array (see the $badfilter description for more info)
-     *
-     * @param rules to filter
-     * @return filtered rules
-     */
-    private static removeBadfilterRules(rules: NetworkRule[]): NetworkRule[] {
-        const badfilterRules: NetworkRule[] = [];
-        for (const rule of rules) {
-            if (rule.isOptionEnabled(NetworkRuleOption.Badfilter)) {
-                badfilterRules.push(rule);
-            }
-        }
-
-        if (badfilterRules.length > 0) {
-            const filteredRules: NetworkRule[] = [];
-            for (const badfilter of badfilterRules) {
-                for (const rule of rules) {
-                    if (!rule.isOptionEnabled(NetworkRuleOption.Badfilter)) {
-                        if (!badfilter.negatesBadfilter(rule)) {
-                            filteredRules.push(rule);
-                        }
-                    }
-                }
-            }
-
-            return filteredRules;
-        }
-
-        return rules;
     }
 }

@@ -542,10 +542,39 @@ export class NetworkRule implements rule.IRule {
     }
 
     /**
-     * Returns true if this rule negates the specified rule
+     * Returns null if this rule negates the specified rule or
+     * returns modified rule in case badfilter is applied to permitted domains
      * Only makes sense when this rule has a `badfilter` modifier
      */
-    negatesBadfilter(specifiedRule: NetworkRule): boolean {
+    applyBadfilter(specifiedRule: NetworkRule): NetworkRule | null {
+        if (!this.couldApplyBadFilter(specifiedRule)) {
+            return specifiedRule;
+        }
+
+        if (utils.stringArraysEquals(this.permittedDomains, specifiedRule.permittedDomains)) {
+            // this badfilter rule disables specified rule
+            return null;
+        }
+
+        if (specifiedRule.permittedDomains && this.permittedDomains) {
+            if (!specifiedRule.restrictedDomains || specifiedRule.restrictedDomains.length === 0) {
+                if (!specifiedRule.isOptionEnabled(NetworkRuleOption.Csp)) {
+                    // some domains are disabled by this badfilter rule
+                    // eslint-disable-next-line no-param-reassign,max-len
+                    specifiedRule.permittedDomains = specifiedRule.permittedDomains.filter((x) => !this.permittedDomains!.includes(x));
+                }
+            }
+        }
+
+        return specifiedRule;
+    }
+
+    /**
+     * Checks if specified rule could be negated by this badfilter rule
+     *
+     * @param specifiedRule
+     */
+    private couldApplyBadFilter(specifiedRule: NetworkRule): boolean {
         if (!this.isOptionEnabled(NetworkRuleOption.Badfilter)) {
             return false;
         }
@@ -571,10 +600,6 @@ export class NetworkRule implements rule.IRule {
         }
 
         if (this.disabledOptions !== specifiedRule.disabledOptions) {
-            return false;
-        }
-
-        if (!utils.stringArraysEquals(this.permittedDomains, specifiedRule.permittedDomains)) {
             return false;
         }
 

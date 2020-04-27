@@ -21,6 +21,10 @@ describe('TestEngineMatchRequest', () => {
         expect(result.cookieRules).toBeNull();
         expect(result.stealthRule).toBeNull();
 
+        expect(result.getReplaceRules()).toHaveLength(0);
+        expect(result.getCspRules()).toHaveLength(0);
+        expect(result.getCookieRules()).toHaveLength(0);
+
         request = new Request('https://example.org', 'https://example.org', RequestType.Document);
         result = engine.matchRequest(request);
 
@@ -30,6 +34,10 @@ describe('TestEngineMatchRequest', () => {
         expect(result.cspRules).toBeNull();
         expect(result.cookieRules).toBeNull();
         expect(result.stealthRule).toBeNull();
+
+        expect(result.getReplaceRules()).toHaveLength(0);
+        expect(result.getCspRules()).toHaveLength(0);
+        expect(result.getCookieRules()).toHaveLength(0);
     });
 });
 
@@ -63,12 +71,12 @@ describe('TestEngineMatchRequest - advanced modifiers', () => {
 
         expect(result.basicRule).toBeNull();
         expect(result.documentRule).toBeNull();
-        expect(result.replaceRules && result.replaceRules.length).toBe(1);
-        expect(result.replaceRules && result.replaceRules[0].getText()).toBe(replaceRule);
-        expect(result.cspRules && result.cspRules.length).toBe(1);
-        expect(result.cspRules && result.cspRules[0].getText()).toBe(cspRule);
-        expect(result.cookieRules && result.cookieRules.length).toBe(1);
-        expect(result.cookieRules && result.cookieRules[0].getText()).toBe(cookieRule);
+        expect(result.getReplaceRules()).toHaveLength(1);
+        expect(result.getReplaceRules()[0].getText()).toBe(replaceRule);
+        expect(result.getCspRules()).toHaveLength(1);
+        expect(result.getCspRules()[0].getText()).toBe(cspRule);
+        expect(result.getCookieRules()).toHaveLength(1);
+        expect(result.getCookieRules()[0].getText()).toBe(cookieRule);
         expect(result.stealthRule).toBeNull();
     });
 });
@@ -232,5 +240,50 @@ describe('TestEngineCosmeticResult - js', () => {
 
         expect(result.JS.generic.length).toEqual(0);
         expect(result.JS.specific.length).toEqual(0);
+    });
+});
+
+
+describe('Test badfilter modificator', () => {
+    it('works if badfilter is ok', () => {
+        const rules = [
+            '/some-url$domain=example.org',
+            '/some-url$domain=example.org,badfilter',
+        ];
+        const list = new StringRuleList(1, rules.join('\n'), false);
+        const engine = new Engine(new RuleStorage([list]));
+
+        const request = new Request('https://example.org/some-url', 'https://example.org/', RequestType.Document);
+        const result = engine.matchRequest(request);
+
+        expect(result.getBasicResult()).toBeNull();
+    });
+
+    it('works if badfilter disables permitted domains', () => {
+        const rules = [
+            '/some-url$domain=example.org|example.com',
+            '/some-url$domain=example.org,badfilter',
+        ];
+        const list = new StringRuleList(1, rules.join('\n'), false);
+        const engine = new Engine(new RuleStorage([list]));
+
+        const request = new Request('https://example.com/some-url', 'https://example.com/', RequestType.Document);
+        const result = engine.matchRequest(request);
+
+        expect(result.getBasicResult()).not.toBeNull();
+    });
+
+    it('works if badfilter disables permitted domains but the rest doesnt match', () => {
+        const rules = [
+            '/some-url$domain=example.com|example.test',
+            '/some-url$domain=example.com,badfilter',
+        ];
+        const list = new StringRuleList(1, rules.join('\n'), false);
+        const engine = new Engine(new RuleStorage([list]));
+
+        const request = new Request('https://example.com/some-url', 'https://example.com/', RequestType.Document);
+        const result = engine.matchRequest(request);
+
+        expect(result.getBasicResult()).toBeNull();
     });
 });

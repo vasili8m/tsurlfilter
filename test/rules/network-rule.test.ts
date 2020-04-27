@@ -236,14 +236,19 @@ describe('NetworkRule constructor', () => {
         checkRequestType('~other', RequestType.Other, false);
     });
 
-    function assertBadfilterNegates(rule: string, badfilter: string, expected: boolean): void {
+    function assertBadfilterNegates(rule: string, badfilter: string, isMatch: boolean): void {
         const r = new NetworkRule(rule, -1);
         expect(r).toBeTruthy();
 
         const b = new NetworkRule(badfilter, -1);
         expect(b).toBeTruthy();
 
-        expect(b.negatesBadfilter(r)).toEqual(expected);
+        const result = b.applyBadfilter(r);
+        if (isMatch) {
+            expect(result).toBeNull();
+        } else {
+            expect(result).not.toBeNull();
+        }
     }
 
     it('works if badfilter modifier works properly', () => {
@@ -259,6 +264,39 @@ describe('NetworkRule constructor', () => {
         // eslint-disable-next-line max-len
         assertBadfilterNegates('@@path$image,domain=~example.org', '@@an-other-path$image,domain=~example.org,badfilter', false);
         assertBadfilterNegates('*$~image,domain=example.org', '*$~script,domain=example.org,badfilter', false);
+    });
+
+    it('works if badfilter modifies permitted domains properly', () => {
+        let rule = new NetworkRule('*$image,domain=example.org', -1);
+        let badFilterRule = new NetworkRule('*$image,domain=example.org,badfilter', -1);
+        let result = badFilterRule.applyBadfilter(rule);
+        expect(result).toBeNull();
+
+        rule = new NetworkRule('*$image,domain=example.org|example.com', -1);
+        badFilterRule = new NetworkRule('*$image,domain=example.org,badfilter', -1);
+        result = badFilterRule.applyBadfilter(rule);
+        expect(result).not.toBeNull();
+        expect(result!.getPermittedDomains()).toHaveLength(1);
+        expect(result!.getPermittedDomains()).toContain('example.com');
+
+        rule = new NetworkRule('*$image,domain=example.org|example.com|example.test', -1);
+        badFilterRule = new NetworkRule('*$image,domain=example.org|example.com,badfilter', -1);
+        result = badFilterRule.applyBadfilter(rule);
+        expect(result).not.toBeNull();
+        expect(result!.getPermittedDomains()).toHaveLength(1);
+        expect(result!.getPermittedDomains()).toContain('example.test');
+
+        rule = new NetworkRule('*$image,domain=example.org|example.com,csp=connect-src \'none\'', -1);
+        badFilterRule = new NetworkRule('*$image,domain=example.org,badfilter', -1);
+        result = badFilterRule.applyBadfilter(rule);
+        expect(result).not.toBeNull();
+        expect(result!.getPermittedDomains()).toHaveLength(2);
+
+        rule = new NetworkRule('*$image,domain=example.org|example.com|~negated.com,csp=connect-src \'none\'', -1);
+        badFilterRule = new NetworkRule('*$image,domain=example.org,badfilter', -1);
+        result = badFilterRule.applyBadfilter(rule);
+        expect(result).not.toBeNull();
+        expect(result!.getPermittedDomains()).toHaveLength(2);
     });
 });
 
