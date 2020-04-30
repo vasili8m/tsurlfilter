@@ -56,17 +56,16 @@ export interface CookieApi {
  * 3. Cookie header value is i_track_u=1; JSESSIONID=321321
  * 4. First of all, modify the Cookie header so that the server doesn't receive the i_track_u value.
  *    Modified value: JSESSIONID=321321
- * 5. Wait for the response and check all the Set-Cookie headers received from the server.
- * 6. Remove the one that sets the i_track_u cookie (or modify it and strip that cookie if it contains more than one)
- * 7. Now we need to make sure that browser deletes that cookie.
- *    In order to do it, we should add a new Set-Cookie header that sets i_track_u with a negative
- *    expiration date: Set-Cookie: i_track_u=1; expires=[CURRENT_DATETIME]; path=/; domain=.example.org.
+ * 5. Modify cookie with provided browser api
  *
+ * TODO: Handle third-party cookies
  * Step 7 must not be executed when the rule has the third-party modifier.
  * third-party means that there is a case (first-party) when cookies must not be removed, i.e.
  * they can be actually useful, and removing them can be counterproductive.
  * For instance, Google and Facebook rely on their SSO cookies and forcing a browser to remove
  * them will also automatically log you out.
+ *
+ * TODO: Process javascript cookies
  */
 export class CookieFiltering {
     /**
@@ -128,6 +127,8 @@ export class CookieFiltering {
             const cookie = cookies[iCookies];
 
             const cookieName = cookie.name;
+
+            // TODO: Detect third-party cookies
 
             const bRule = CookieFiltering.lookupNotModifyingRule(cookieName, cookieRules);
             if (bRule) {
