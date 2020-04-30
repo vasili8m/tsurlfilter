@@ -3,7 +3,7 @@ import { FilteringLog } from '../filtering-log';
 import { NetworkRule } from '../rules/network-rule';
 import CookieUtils from './utils';
 import { CookieModifier } from '../modifiers/cookie-modifier';
-import { CookieHeader } from './cookie-header';
+import { BrowserCookie } from './browser-cookie';
 
 /**
  * Header interface
@@ -32,7 +32,7 @@ export interface CookieApi {
      * @param setCookie
      * @param url
      */
-    modifyCookie(setCookie: any, url: string): void;
+    modifyCookie(setCookie: BrowserCookie, url: string): void;
 
     /**
      * Fetch cookies
@@ -40,7 +40,7 @@ export interface CookieApi {
      * @param name
      * @param url
      */
-    getCookies(name: string, url: string): CookieHeader[];
+    getCookies(name: string, url: string): BrowserCookie[];
 }
 
 /**
@@ -152,75 +152,6 @@ export class CookieFiltering {
     }
 
     /**
-     * Modifies response headers according to matching $cookie rules.
-     *
-     * @param request
-     * @param responseHeaders Response headers
-     * @param cookieRules
-     * @return True if headers were modified
-     */
-    public processResponseHeaders(request: Request, responseHeaders: Header[], cookieRules: NetworkRule[]): boolean {
-        /**
-         * TODO: These two issues might change the way we're going to implement this:
-         * https://bugs.chromium.org/p/chromium/issues/detail?id=827582
-         * https://bugs.chromium.org/p/chromium/issues/detail?id=898461
-         */
-
-        if ((cookieRules.length === 0)) {
-            // Nothing to apply
-            return false;
-        }
-
-        /**
-         * Collects cookies that will be blocked or modified via Set-Cookie header
-         * @type {Array.<string>}
-         */
-        const processedCookies = [];
-
-        let setCookieHeaderModified = false;
-
-        let iResponseHeaders = responseHeaders.length;
-        // modifying responseHeaders array here is safe because we're iterating
-        // in reverse order
-        while (iResponseHeaders > 0) {
-            iResponseHeaders -= 1;
-            const header = responseHeaders[iResponseHeaders];
-            if (!header.name || header.name.toLowerCase() !== 'set-cookie') {
-                continue;
-            }
-
-            const setCookie = CookieUtils.parseSetCookie(header.value);
-            if (!setCookie) {
-                continue;
-            }
-
-            const cookieName = setCookie.name;
-            const bRule = CookieFiltering.lookupNotModifyingRule(cookieName, cookieRules);
-            if (bRule) {
-                if (!bRule.isWhitelist()) {
-                    delete setCookie.expires;
-                    setCookie.maxAge = 0;
-                    header.value = CookieUtils.serialize(setCookie);
-
-                    setCookieHeaderModified = true;
-                }
-                processedCookies.push(cookieName);
-                // TODO: Add filtering log event
-                // addCookieLogEvent(tab, cookieName, cookieValue, cookieDomain, thirdParty, [bRule], false);
-            }
-
-            const mRules = CookieFiltering.lookupModifyingRules(cookieName, cookieRules);
-            if (CookieFiltering.processSetCookieHeader(setCookie, header, mRules)) {
-                setCookieHeaderModified = true;
-                processedCookies.push(cookieName);
-            }
-        }
-
-        this.removeProcessingCookies(request.requestId!, processedCookies);
-        return setCookieHeaderModified;
-    }
-
-    /**
      * Modifies cookies with browser.api
      * TODO: Add filtering log events
      *
@@ -252,14 +183,12 @@ export class CookieFiltering {
      * @param url
      * @param rules
      */
-    private modifyCookie(name: string, url: string, rules: NetworkRule[]) {
+    private modifyCookie(name: string, url: string, rules: NetworkRule[]): void {
         const cookies = this.cookieManager.getCookies(name, url);
         for (let i = 0; i < cookies.length; i += 1) {
             const cookie = cookies[i];
-
-            const setCookie = cookie as CookieHeader;
-            if (setCookie) {
-                const mRules = CookieFiltering.applyRuleToSetCookieHeaderValue(setCookie, rules);
+            if (cookie) {
+                const mRules = CookieFiltering.applyRuleToBrowserCookie(cookie, rules);
                 if (mRules && mRules.length > 0) {
                     this.cookieManager.modifyCookie(cookie, url);
                 }
@@ -297,73 +226,14 @@ export class CookieFiltering {
     }
 
     /**
-     * Removes cookies from processing
-     *
-     * @param {string} requestId
-     * @param {Array.<string>} cookieNames Cookies to remove
-     */
-    private removeProcessingCookies(requestId: number, cookieNames: string[]): void {
-        const values = this.cookiesMap.get(requestId);
-        if (!values) {
-            return;
-        }
-
-        let iValues = values.length;
-        // eslint-disable-next-line no-cond-assign
-        while (iValues > 0) {
-            iValues -= 1;
-            const value = values[iValues];
-            // eslint-disable-next-line prefer-destructuring
-            const cookie = value.cookie;
-            if (cookieNames.indexOf(cookie.name) >= 0) {
-                values.splice(iValues, 1);
-            }
-        }
-        if (values.length === 0) {
-            this.cookiesMap.delete(requestId);
-        }
-    }
-
-    /**
-     * Process Set-Cookie header modification by rules.
-     * Adds corresponding event to the filtering log.
-     *
-     * @param setCookie Cookie to modify
-     * @param header Header to modify
-     * @param rules Cookie matching rules
-     * @return True if Set-Cookie header were modified
-     */
-    private static processSetCookieHeader(
-        setCookie: CookieHeader,
-        header: Header,
-        rules: NetworkRule[],
-    ): boolean {
-        if (rules.length === 0) {
-            return false;
-        }
-
-        const applied = CookieFiltering.applyRuleToSetCookieHeaderValue(setCookie, rules);
-
-        if (applied.length > 0) {
-            // eslint-disable-next-line no-param-reassign
-            header.value = CookieUtils.serialize(setCookie);
-            // TODO: Filtering log
-            // addCookieLogEvent(tab, cookieName, cookieValue, cookieDomain, thirdParty, rules, true);
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
      * Modifies set-cookie header with rules
      *
-     * @param setCookie Cookie header to modify
+     * @param cookie Cookie header to modify
      * @param rules Cookie matching rules
      * @return applied rules
      *
      */
-    private static applyRuleToSetCookieHeaderValue(setCookie: CookieHeader, rules: NetworkRule[]): NetworkRule[] {
+    private static applyRuleToBrowserCookie(cookie: BrowserCookie, rules: NetworkRule[]): NetworkRule[] {
         const appliedRules = [];
 
         for (let i = 0; i < rules.length; i += 1) {
@@ -374,15 +244,15 @@ export class CookieFiltering {
 
             // eslint-disable-next-line prefer-destructuring
             const sameSite = cookieModifier.getSameSite();
-            if (sameSite && setCookie.sameSite !== sameSite) {
+            if (sameSite && cookie.sameSite !== sameSite) {
                 // eslint-disable-next-line no-param-reassign
-                setCookie.sameSite = sameSite;
+                cookie.sameSite = sameSite;
                 modified = true;
             }
 
             const maxAge = cookieModifier.getMaxAge();
             if (maxAge) {
-                if (CookieFiltering.updateSetCookieMaxAge(setCookie, maxAge)) {
+                if (CookieFiltering.updateSetCookieMaxAge(cookie, maxAge)) {
                     modified = true;
                 }
             }
@@ -403,7 +273,7 @@ export class CookieFiltering {
      * @param maxAge
      * @return if cookie was modified
      */
-    private static updateSetCookieMaxAge(setCookie: CookieHeader, maxAge: number): boolean {
+    private static updateSetCookieMaxAge(setCookie: BrowserCookie, maxAge: number): boolean {
         const currentTimeSec = Date.now() / 1000;
 
         let cookieExpiresTimeSec = null;

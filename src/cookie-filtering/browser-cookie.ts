@@ -1,7 +1,7 @@
 /**
- * Cookie header object
+ * Browser cookie class
  */
-export class CookieHeader {
+export class BrowserCookie {
     /**
      * Cookie name
      */
@@ -34,24 +34,9 @@ export class CookieHeader {
     maxAge: number | undefined;
 
     /**
-     * indicates that this cookie should only be sent over HTTPs
-     */
-    secure: boolean | undefined;
-
-    /**
-     * indicates that this cookie should not be accessible to client-side JavaScript
-     */
-    httpOnly: boolean | undefined;
-
-    /**
      * indicates a cookie ought not to be sent along with cross-site requests
      */
     sameSite: string | undefined;
-
-    /**
-     * Priority
-     */
-    priority: string | undefined;
 
     /**
      * Constructor
