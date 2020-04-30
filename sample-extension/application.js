@@ -165,10 +165,6 @@ export class Application {
             }
         }
 
-        if (this.processResponseHeaders(request, responseHeaders)) {
-            responseHeadersModified = true;
-        }
-
         if (responseHeadersModified) {
             console.debug('Response headers modified');
             return { responseHeaders };
@@ -262,26 +258,6 @@ export class Application {
 
         const cookieRules = this.getCookieRules(request);
         return this.cookieFiltering.processRequestHeaders(request, headers, cookieRules);
-    }
-
-    /**
-     * Modifies request headers
-     *
-     * @param request
-     * @param headers
-     * @return {null}
-     */
-    processResponseHeaders(request, headers) {
-        console.debug('Processing response headers');
-        console.debug(headers);
-
-        // Permission is not granted
-        if (!this.browser.cookies) {
-            return false;
-        }
-
-        const cookieRules = this.getCookieRules(request);
-        return this.cookieFiltering.processResponseHeaders(request, headers, cookieRules);
     }
 
     /**
