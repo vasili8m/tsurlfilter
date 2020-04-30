@@ -90,6 +90,30 @@ describe('Cookie filtering', () => {
 
         cookieManager.setCookies([new BrowserCookie('an_other', 'test_value')]);
         cookieFiltering.modifyCookies(request.requestId!);
+
+        cookieFiltering.processRequestHeaders(request, headers, rules);
+        let browserCookie = new BrowserCookie('some_cookie', 'test_value');
+        browserCookie.expires = new Date(Date.parse('06 Nov 1999'));
+        cookieManager.setCookies([browserCookie]);
+        cookieFiltering.modifyCookies(request.requestId!);
+        expect(cookieManager.modifyCookie).toHaveBeenLastCalledWith({
+            expires: new Date('1999-11-05T22:00:00.000Z'), name: 'some_cookie', sameSite: 'lax', value: 'test_value',
+        }, 'https://example.org');
+
+        cookieFiltering.processRequestHeaders(request, headers, rules);
+        browserCookie = new BrowserCookie('some_cookie', 'test_value');
+        browserCookie.expires = new Date(Date.parse('06 Nov 2099'));
+        cookieManager.setCookies([browserCookie]);
+        cookieFiltering.modifyCookies(request.requestId!);
+
+        cookieFiltering.processRequestHeaders(request, headers, rules);
+        browserCookie = new BrowserCookie('some_cookie', 'test_value');
+        browserCookie.maxAge = 100;
+        cookieManager.setCookies([browserCookie]);
+        cookieFiltering.modifyCookies(request.requestId!);
+        expect(cookieManager.modifyCookie).toHaveBeenLastCalledWith({
+            maxAge: 15, name: 'some_cookie', sameSite: 'lax', value: 'test_value',
+        }, 'https://example.org');
     });
 
     it('checks modifying rule - sameSite', () => {
@@ -107,6 +131,15 @@ describe('Cookie filtering', () => {
         expect(cookieHeader.value).toBe('__cfduid=test_value; logged_in=yes;');
 
         cookieManager.setCookies([new BrowserCookie('__cfduid', 'test_value')]);
+        cookieFiltering.modifyCookies(request.requestId!);
+        expect(cookieManager.modifyCookie).toHaveBeenLastCalledWith({
+            name: '__cfduid', sameSite: 'lax', value: 'test_value',
+        }, 'https://example.org');
+
+        const browserCookie = new BrowserCookie('__cfduid', 'test_value');
+        browserCookie.sameSite = 'lax';
+        cookieManager.setCookies([browserCookie]);
+        cookieFiltering.processRequestHeaders(request, headers, rules);
         cookieFiltering.modifyCookies(request.requestId!);
         expect(cookieManager.modifyCookie).toHaveBeenLastCalledWith({
             name: '__cfduid', sameSite: 'lax', value: 'test_value',
