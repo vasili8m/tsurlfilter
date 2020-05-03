@@ -1,7 +1,8 @@
-import { CookieApi, CookieFiltering } from '../../src/cookie-filtering/cookie-filtering';
+import { CookieFiltering } from '../../src/cookie-filtering/cookie-filtering';
 import { MockFilteringLog } from '../mock-filtering-log';
 import { NetworkRule, Request, RequestType } from '../../src';
 import { BrowserCookie } from '../../src/cookie-filtering/browser-cookie';
+import { CookieApi } from '../../src/cookie-filtering/cookie-api';
 
 const createTestRequest = (requestId: number): Request => {
     const request = new Request('https://example.org', '', RequestType.Document);

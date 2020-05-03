@@ -4,6 +4,7 @@ import { NetworkRule } from '../rules/network-rule';
 import CookieUtils from './utils';
 import { CookieModifier } from '../modifiers/cookie-modifier';
 import { BrowserCookie } from './browser-cookie';
+import { CookieApi } from './cookie-api';
 
 /**
  * Header interface
@@ -11,36 +12,6 @@ import { BrowserCookie } from './browser-cookie';
 interface Header {
     name: string;
     value: string;
-}
-
-/**
- * Cookie manager interface
- * TODO: Extract file
- */
-export interface CookieApi {
-    /**
-     * Removes cookie
-     *
-     * @param name
-     * @param url
-     */
-    removeCookie(name: string, url: string): void;
-
-    /**
-     * Modifies cookie
-     *
-     * @param setCookie
-     * @param url
-     */
-    modifyCookie(setCookie: BrowserCookie, url: string): void;
-
-    /**
-     * Fetch cookies
-     *
-     * @param name
-     * @param url
-     */
-    getCookies(name: string, url: string): BrowserCookie[];
 }
 
 /**
@@ -71,8 +42,12 @@ export class CookieFiltering {
     /**
      * Contains cookie to modify for each request
      */
-    // eslint-disable-next-line max-len
-    private cookiesMap: Map<number, { remove: boolean;cookie: { name: string; url: string };rules: NetworkRule[]}[]> = new Map();
+    private cookiesMap: Map<number, {
+        tabId: number;
+        remove: boolean;
+        cookie: { name: string; url: string };
+        rules: NetworkRule[];
+    }[]> = new Map();
 
     /**
      * Cookie api implementation
@@ -95,6 +70,7 @@ export class CookieFiltering {
      *
      * @param request
      * @param requestHeaders Request headers
+     * @param cookieRules
      * @return True if headers were modified
      */
     public processRequestHeaders(request: Request, requestHeaders: Header[], cookieRules: NetworkRule[]): boolean {
@@ -104,7 +80,7 @@ export class CookieFiltering {
         }
 
         const {
-            requestId, url,
+            requestId, url, tabId,
         } = request;
 
         const cookieHeader = CookieFiltering.findHeaderByName(requestHeaders, 'Cookie');
@@ -136,12 +112,12 @@ export class CookieFiltering {
                     cookies.splice(iCookies, 1);
                     cookieHeaderModified = true;
                 }
-                this.scheduleProcessingCookie(requestId!, cookieName, url, [bRule], true);
+                this.scheduleProcessingCookie(requestId!, tabId!, cookieName, url, [bRule], true);
             }
 
             const mRules = CookieFiltering.lookupModifyingRules(cookieName, cookieRules);
             if (mRules && mRules.length > 0) {
-                this.scheduleProcessingCookie(requestId!, cookieName, url, mRules, false);
+                this.scheduleProcessingCookie(requestId!, tabId!, cookieName, url, mRules, false);
             }
         }
 
@@ -154,7 +130,6 @@ export class CookieFiltering {
 
     /**
      * Modifies cookies with browser.api
-     * TODO: Add filtering log events
      *
      * @param requestId Request identifier
      */
@@ -169,8 +144,9 @@ export class CookieFiltering {
 
             if (value.remove) {
                 this.cookieManager.removeCookie(cookie.name, cookie.url);
+                this.filteringLog.addCookieEvent(value.tabId, cookie.name, value.rules);
             } else {
-                this.modifyCookie(cookie.name, cookie.url, value.rules);
+                this.modifyCookie(value.tabId, cookie.name, cookie.url, value.rules);
             }
         }
 
@@ -180,11 +156,12 @@ export class CookieFiltering {
     /**
      * Modifies cookie with rules
      *
+     * @param tabId
      * @param name
      * @param url
      * @param rules
      */
-    private modifyCookie(name: string, url: string, rules: NetworkRule[]): void {
+    private modifyCookie(tabId: number, name: string, url: string, rules: NetworkRule[]): void {
         const cookies = this.cookieManager.getCookies(name, url);
         for (let i = 0; i < cookies.length; i += 1) {
             const cookie = cookies[i];
@@ -192,6 +169,7 @@ export class CookieFiltering {
                 const mRules = CookieFiltering.applyRuleToBrowserCookie(cookie, rules);
                 if (mRules && mRules.length > 0) {
                     this.cookieManager.modifyCookie(cookie, url);
+                    this.filteringLog.addCookieEvent(tabId, cookie.name, mRules);
                 }
             }
         }
@@ -200,14 +178,16 @@ export class CookieFiltering {
     /**
      * Persist cookie for further processing
      *
-     * @param {string} requestId
-     * @param {string} name
-     * @param {string} url
+     * @param requestId
+     * @param tabId
+     * @param name
+     * @param url
      * @param rules
-     * @param {boolean} remove
+     * @param remove
      */
     private scheduleProcessingCookie(
         requestId: number,
+        tabId: number,
         name: string,
         url: string,
         rules: NetworkRule[],
@@ -220,6 +200,7 @@ export class CookieFiltering {
         }
 
         values.push({
+            tabId,
             remove,
             cookie: { name, url },
             rules,

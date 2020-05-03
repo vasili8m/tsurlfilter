@@ -23,4 +23,13 @@ export interface FilteringLog {
      * @param {NetworkRule[]} rules - cookie rule
      */
     addReplaceRulesEvent(tabId: number, frameUrl: string, rules: NetworkRule[]): void;
+
+    /**
+     * Adds cookie rule event
+     *
+     * @param tabId
+     * @param cookieName
+     * @param rules
+     */
+    addCookieEvent(tabId: number, cookieName: string, rules: NetworkRule[]): void;
 }

@@ -95,17 +95,17 @@ export class FilteringLog {
      * Add cookie event to log
      *
      * @param {Number} tabId - tab id
-     * @param {String} frameUrl - Frame url
-     * @param {Object} rule - cookie rule
+     * @param {String} cookieName - Cookie name
+     * @param {Object} rules - cookie rules triggered
      */
-    addCookieEvent(tabId, frameUrl, rule) {
-        const filteringEvent = {
-            eventType: 'COOKIE',
-            frameUrl,
-            rule,
-        };
-
-        this.pushFilteringEvent(filteringEvent);
+    addCookieEvent(tabId, cookieName, rules) {
+        rules.forEach((r) => {
+            this.pushFilteringEvent({
+                eventType: 'COOKIE',
+                cookieName,
+                rule: r,
+            });
+        });
     }
 
     /**

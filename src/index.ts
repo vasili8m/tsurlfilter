@@ -10,3 +10,4 @@ export * from './content-filtering/content-filtering';
 export * from './cookie-filtering/cookie-filtering';
 export * from './filtering-log';
 export * from './engine/cosmetic-option';
+export * from './cookie-filtering/cookie-api';

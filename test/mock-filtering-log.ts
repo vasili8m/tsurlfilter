@@ -8,4 +8,8 @@ export class MockFilteringLog implements FilteringLog {
     addReplaceRulesEvent = jest.fn(() => {
         // Do nothing
     });
+
+    addCookieEvent = jest.fn(() => {
+        // Do nothing
+    });
 }
