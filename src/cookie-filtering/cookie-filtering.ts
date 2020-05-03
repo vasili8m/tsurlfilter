@@ -234,7 +234,7 @@ export class CookieFiltering {
 
             const maxAge = cookieModifier.getMaxAge();
             if (maxAge) {
-                if (CookieFiltering.updateSetCookieMaxAge(cookie, maxAge)) {
+                if (CookieUtils.updateCookieMaxAge(cookie, maxAge)) {
                     modified = true;
                 }
             }
@@ -245,40 +245,6 @@ export class CookieFiltering {
         }
 
         return appliedRules;
-    }
-
-    /**
-     * Updates set-cookie maxAge value
-     * TODO: Move to utils
-     *
-     * @param setCookie Cookie to modify
-     * @param maxAge
-     * @return if cookie was modified
-     */
-    private static updateSetCookieMaxAge(setCookie: BrowserCookie, maxAge: number): boolean {
-        const currentTimeSec = Date.now() / 1000;
-
-        let cookieExpiresTimeSec = null;
-        if (setCookie.maxAge) {
-            cookieExpiresTimeSec = currentTimeSec + setCookie.maxAge;
-        } else if (setCookie.expires) {
-            cookieExpiresTimeSec = setCookie.expires.getTime() / 1000;
-        }
-
-        const newCookieExpiresTimeSec = currentTimeSec + maxAge;
-        if (cookieExpiresTimeSec === null || cookieExpiresTimeSec > newCookieExpiresTimeSec) {
-            if (setCookie.expires) {
-                // eslint-disable-next-line no-param-reassign
-                setCookie.expires = new Date(newCookieExpiresTimeSec * 1000);
-            } else {
-                // eslint-disable-next-line no-param-reassign
-                setCookie.maxAge = maxAge;
-            }
-
-            return true;
-        }
-
-        return false;
     }
 
     /**

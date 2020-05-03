@@ -1,4 +1,5 @@
 import CookieUtils from '../../src/cookie-filtering/utils';
+import { BrowserCookie } from '../../src/cookie-filtering/browser-cookie';
 
 describe('Cookie utils - Cookie parsing', () => {
     it('checks parse simple', () => {
@@ -36,5 +37,54 @@ describe('Cookie utils - Cookie parsing', () => {
         const cookies = CookieUtils.parseCookie(cookieValue);
 
         expect(cookies).toHaveLength(0);
+    });
+});
+
+describe('Cookie utils - update max age', () => {
+    const cookie = new BrowserCookie('test', 'test');
+
+    it('checks update - max age', () => {
+        cookie.maxAge = undefined;
+        cookie.expires = undefined;
+
+        expect(CookieUtils.updateCookieMaxAge(cookie, 1)).toBeTruthy();
+        expect(cookie.maxAge).toBe(1);
+        expect(cookie.expires).not.toBeDefined();
+    });
+
+    it('checks add - max age', () => {
+        cookie.maxAge = 2;
+        cookie.expires = undefined;
+
+        expect(CookieUtils.updateCookieMaxAge(cookie, 1)).toBeTruthy();
+        expect(cookie.maxAge).toBe(1);
+        expect(cookie.expires).not.toBeDefined();
+    });
+
+    it('checks no update - max age', () => {
+        cookie.maxAge = 1;
+        cookie.expires = undefined;
+
+        expect(CookieUtils.updateCookieMaxAge(cookie, 2)).toBeFalsy();
+        expect(cookie.maxAge).toBe(1);
+        expect(cookie.expires).not.toBeDefined();
+    });
+
+    it('checks add - expires', () => {
+        cookie.maxAge = undefined;
+        cookie.expires = new Date(new Date().getTime() + 5 * 1000);
+
+        expect(CookieUtils.updateCookieMaxAge(cookie, 2)).toBeTruthy();
+        expect(cookie.maxAge).not.toBeDefined();
+        expect(cookie.expires).toBeDefined();
+    });
+
+    it('checks no update - expires', () => {
+        cookie.maxAge = undefined;
+        cookie.expires = new Date();
+
+        expect(CookieUtils.updateCookieMaxAge(cookie, 2)).toBeFalsy();
+        expect(cookie.maxAge).not.toBeDefined();
+        expect(cookie.expires).toBeDefined();
     });
 });

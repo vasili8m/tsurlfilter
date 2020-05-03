@@ -1,5 +1,5 @@
-/* eslint-disable prefer-template */
 import { Cookie } from './cookie';
+import { BrowserCookie } from './browser-cookie';
 
 /**
  * Helper methods for parsing and extracting browser cookies from headers (both Set-Cookie and Cookie).
@@ -35,5 +35,38 @@ export default class CookieUtils {
         }
 
         return cookies;
+    }
+
+    /**
+     * Updates cookie maxAge value
+     *
+     * @param browserCookie Cookie to modify
+     * @param maxAge
+     * @return if cookie was modified
+     */
+    public static updateCookieMaxAge(browserCookie: BrowserCookie, maxAge: number): boolean {
+        const currentTimeSec = Date.now() / 1000;
+
+        let cookieExpiresTimeSec = null;
+        if (browserCookie.maxAge) {
+            cookieExpiresTimeSec = currentTimeSec + browserCookie.maxAge;
+        } else if (browserCookie.expires) {
+            cookieExpiresTimeSec = browserCookie.expires.getTime() / 1000;
+        }
+
+        const newCookieExpiresTimeSec = currentTimeSec + maxAge;
+        if (cookieExpiresTimeSec === null || cookieExpiresTimeSec > newCookieExpiresTimeSec) {
+            if (browserCookie.expires) {
+                // eslint-disable-next-line no-param-reassign
+                browserCookie.expires = new Date(newCookieExpiresTimeSec * 1000);
+            } else {
+                // eslint-disable-next-line no-param-reassign
+                browserCookie.maxAge = maxAge;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 }
