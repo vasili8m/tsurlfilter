@@ -25,8 +25,7 @@ export interface CookieApi {
     /**
      * Fetch cookies
      *
-     * @param name
      * @param url
      */
-    getCookies(name: string, url: string): BrowserCookie[];
+    getCookies(url: string): BrowserCookie[];
 }

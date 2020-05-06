@@ -7,13 +7,14 @@ import { CookieApi } from '../../src/cookie-filtering/cookie-api';
 const createTestRequest = (requestId: number): Request => {
     const request = new Request('https://example.org', '', RequestType.Document);
     request.requestId = requestId;
+    request.tabId = 1;
 
     return request;
 };
 
-const createTestRequestHeaders = (cookieHeader: {name: string;value: string}): {name: string;value: string}[] => [
+const createTestHeaders = (setCookieHeaders: {name: string;value: string}[]): {name: string;value: string}[] => [
     { name: 'Header One', value: 'Header Value One' },
-    cookieHeader,
+    ...setCookieHeaders,
 ];
 
 /**
@@ -52,66 +53,56 @@ describe('Cookie filtering', () => {
             new NetworkRule('||example.org^$cookie=c_user', 1),
         ];
 
-        const cookieHeader = { name: 'Cookie', value: '_octo=GH1.1.635223982.1507661197; logged_in=yes; c_user=test;' };
-        const headers = createTestRequestHeaders(cookieHeader);
-        const modifiedRequest = cookieFiltering.processRequestHeaders(request, headers, rules);
-        expect(modifiedRequest).toBeTruthy();
-        expect(headers).toContain(cookieHeader);
-        expect(cookieHeader.value).toBe('_octo=GH1.1.635223982.1507661197; logged_in=yes');
+        // const setCookieHeader = { name: 'set-cookie', value: 'c_user=test;' };
+        const responseHeaders = createTestHeaders([]);
+        cookieFiltering.processResponseHeaders(request, responseHeaders);
 
         cookieManager.setCookies([new BrowserCookie('c_user', 'test')]);
-        cookieFiltering.modifyCookies(request.requestId!);
+        cookieFiltering.modifyCookies(request, rules);
         expect(cookieManager.removeCookie).toHaveBeenLastCalledWith('c_user', 'https://example.org');
     });
 
     it('checks modifying rule - max age', () => {
         const request = createTestRequest(1);
-        const cookieOptionText = '__cfduid;maxAge=15;sameSite=lax';
+        const cookieOptionText = 'some_cookie;maxAge=15;sameSite=lax';
         const rules = [
             new NetworkRule(`$cookie=${cookieOptionText}`, 1),
         ];
 
-        const cookieHeader = { name: 'Cookie', value: '__cfduid=test_value; logged_in=yes;' };
-        const headers = createTestRequestHeaders(cookieHeader);
-        const modifiedRequest = cookieFiltering.processRequestHeaders(request, headers, rules);
-        expect(modifiedRequest).toBeFalsy();
-        expect(headers).toContain(cookieHeader);
-        expect(cookieHeader.value).toBe('__cfduid=test_value; logged_in=yes;');
+        const responseHeaders = createTestHeaders([]);
+        cookieFiltering.processResponseHeaders(request, responseHeaders);
 
         cookieManager.setCookies(
             [
                 new BrowserCookie('an_other', 'test_value'),
-                new BrowserCookie('__cfduid', 'test_value'),
+                new BrowserCookie('some_cookie', 'test_value'),
             ],
         );
-        cookieFiltering.modifyCookies(request.requestId!);
+        cookieFiltering.modifyCookies(request, rules);
         expect(cookieManager.modifyCookie).toHaveBeenLastCalledWith({
-            maxAge: 15, name: '__cfduid', sameSite: 'lax', value: 'test_value',
+            maxAge: 15, name: 'some_cookie', sameSite: 'lax', value: 'test_value',
         }, 'https://example.org');
 
         cookieManager.setCookies([new BrowserCookie('an_other', 'test_value')]);
-        cookieFiltering.modifyCookies(request.requestId!);
+        cookieFiltering.modifyCookies(request, rules);
 
-        cookieFiltering.processRequestHeaders(request, headers, rules);
         let browserCookie = new BrowserCookie('some_cookie', 'test_value');
         browserCookie.expires = new Date(Date.parse('06 Nov 1999'));
         cookieManager.setCookies([browserCookie]);
-        cookieFiltering.modifyCookies(request.requestId!);
+        cookieFiltering.modifyCookies(request, rules);
         expect(cookieManager.modifyCookie).toHaveBeenLastCalledWith({
             expires: new Date('1999-11-05T22:00:00.000Z'), name: 'some_cookie', sameSite: 'lax', value: 'test_value',
         }, 'https://example.org');
 
-        cookieFiltering.processRequestHeaders(request, headers, rules);
         browserCookie = new BrowserCookie('some_cookie', 'test_value');
         browserCookie.expires = new Date(Date.parse('06 Nov 2099'));
         cookieManager.setCookies([browserCookie]);
-        cookieFiltering.modifyCookies(request.requestId!);
+        cookieFiltering.modifyCookies(request, rules);
 
-        cookieFiltering.processRequestHeaders(request, headers, rules);
         browserCookie = new BrowserCookie('some_cookie', 'test_value');
         browserCookie.maxAge = 100;
         cookieManager.setCookies([browserCookie]);
-        cookieFiltering.modifyCookies(request.requestId!);
+        cookieFiltering.modifyCookies(request, rules);
         expect(cookieManager.modifyCookie).toHaveBeenLastCalledWith({
             maxAge: 15, name: 'some_cookie', sameSite: 'lax', value: 'test_value',
         }, 'https://example.org');
@@ -124,15 +115,8 @@ describe('Cookie filtering', () => {
             new NetworkRule(`$cookie=${cookieOptionText}`, 1),
         ];
 
-        const cookieHeader = { name: 'Cookie', value: '__cfduid=test_value; logged_in=yes;' };
-        const headers = createTestRequestHeaders(cookieHeader);
-        const modifiedRequest = cookieFiltering.processRequestHeaders(request, headers, rules);
-        expect(modifiedRequest).toBeFalsy();
-        expect(headers).toContain(cookieHeader);
-        expect(cookieHeader.value).toBe('__cfduid=test_value; logged_in=yes;');
-
         cookieManager.setCookies([new BrowserCookie('__cfduid', 'test_value')]);
-        cookieFiltering.modifyCookies(request.requestId!);
+        cookieFiltering.modifyCookies(request, rules);
         expect(cookieManager.modifyCookie).toHaveBeenLastCalledWith({
             name: '__cfduid', sameSite: 'lax', value: 'test_value',
         }, 'https://example.org');
@@ -140,33 +124,34 @@ describe('Cookie filtering', () => {
         const browserCookie = new BrowserCookie('__cfduid', 'test_value');
         browserCookie.sameSite = 'lax';
         cookieManager.setCookies([browserCookie]);
-        cookieFiltering.processRequestHeaders(request, headers, rules);
-        cookieFiltering.modifyCookies(request.requestId!);
+        cookieFiltering.modifyCookies(request, rules);
         expect(cookieManager.modifyCookie).toHaveBeenLastCalledWith({
             name: '__cfduid', sameSite: 'lax', value: 'test_value',
         }, 'https://example.org');
     });
 
-    it('checks weird cases', () => {
-        const request = createTestRequest(1);
+    it('checks remove rule - third-party cases', () => {
+        const request = new Request('https://example.org', 'https://source.org', RequestType.Document);
+        expect(request.thirdParty).toBeTruthy();
+
         const rules = [
             new NetworkRule('||example.org^$cookie=c_user', 1),
+            new NetworkRule('||example.org^$third-party,cookie=third_party_user', 1),
         ];
 
-        const cookieHeader = { name: 'Smth-else', value: '' };
-        const headers = createTestRequestHeaders(cookieHeader);
+        const responseHeaders = createTestHeaders([]);
+        cookieFiltering.processResponseHeaders(request, responseHeaders);
 
-        expect(cookieFiltering.processRequestHeaders(request, headers, rules)).toBeFalsy();
-        // One more time
-        expect(cookieFiltering.processRequestHeaders(request, headers, rules)).toBeFalsy();
-        // No rules
-        expect(cookieFiltering.processRequestHeaders(request, headers, [])).toBeFalsy();
-        // No headers
-        expect(cookieFiltering.processRequestHeaders(request, [], rules)).toBeFalsy();
-        // Wrong header
-        expect(cookieFiltering.processRequestHeaders(request, [{ name: 'Cookie', value: '' }], rules)).toBeFalsy();
+        // Cookie has not been marked as third-party
+        cookieManager.setCookies([new BrowserCookie('third_party_user', 'test')]);
+        cookieFiltering.modifyCookies(request, rules);
 
-        // Wrong request
-        cookieFiltering.modifyCookies(request.requestId! + 100);
+        // This is third-party cookie
+        const setCookieHeader = [{ name: 'set-cookie', value: 'third_party_user=test;' }];
+        cookieFiltering.processResponseHeaders(request, responseHeaders.concat(setCookieHeader));
+
+        cookieManager.setCookies([new BrowserCookie('third_party_user', 'test')]);
+        cookieFiltering.modifyCookies(request, rules);
+        expect(cookieManager.removeCookie).toHaveBeenLastCalledWith('third_party_user', 'https://example.org');
     });
 });

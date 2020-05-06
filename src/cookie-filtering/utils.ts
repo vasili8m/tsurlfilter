@@ -38,6 +38,27 @@ export default class CookieUtils {
     }
 
     /**
+     * Parses "Set-Cookie" header value and returns a cookie object with its properties
+     *
+     * @param setCookieValue "Set-Cookie" header value to parse
+     * @returns cookie object or null if it failed to parse the value
+     */
+    public static parseSetCookie(setCookieValue: string): Cookie | null {
+        if (!setCookieValue) {
+            return null;
+        }
+
+        const parts = setCookieValue.split(';').filter((s) => !!s);
+        const nameValuePart = parts.shift();
+        const nameValue = nameValuePart!.split('=');
+        const name = nameValue.shift();
+        // everything after the first =, joined by a "=" if there was more than one part
+        const value = nameValue.join('=');
+
+        return new Cookie(name!, value);
+    }
+
+    /**
      * Updates cookie maxAge value
      *
      * @param browserCookie Cookie to modify

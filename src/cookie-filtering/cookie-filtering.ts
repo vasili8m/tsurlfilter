@@ -1,10 +1,11 @@
 import { Request } from '../request';
 import { FilteringLog } from '../filtering-log';
-import { NetworkRule } from '../rules/network-rule';
+import { NetworkRule, NetworkRuleOption } from '../rules/network-rule';
 import CookieUtils from './utils';
 import { CookieModifier } from '../modifiers/cookie-modifier';
 import { BrowserCookie } from './browser-cookie';
 import { CookieApi } from './cookie-api';
+import { Cookie } from './cookie';
 
 /**
  * Header interface
@@ -16,39 +17,19 @@ interface Header {
 
 /**
  * Cookie filtering module
- * https://github.com/AdguardTeam/AdguardBrowserExtension/issues/961
  *
- * Modifies Cookie/Set-Cookie headers.
+ * What do we do here:
  *
- * Let's look at an example:
+ * onResponseHeadersReceived:
+ * - parse set-cookie header, only to detect if the cookie in header will be set from third-party request
+ * - save third-party flag for this cookie
  *
- * 1. ||example.org^$cookie=i_track_u should block the i_track_u cookie coming from example.org
- * 2. We've intercepted a request sent to https://example.org/count
- * 3. Cookie header value is i_track_u=1; JSESSIONID=321321
- * 4. First of all, modify the Cookie header so that the server doesn't receive the i_track_u value.
- *    Modified value: JSESSIONID=321321
- * 5. Modify cookie with provided browser api
- *
- * TODO: Handle third-party cookies
- * Step 7 must not be executed when the rule has the third-party modifier.
- * third-party means that there is a case (first-party) when cookies must not be removed, i.e.
- * they can be actually useful, and removing them can be counterproductive.
- * For instance, Google and Facebook rely on their SSO cookies and forcing a browser to remove
- * them will also automatically log you out.
- *
- * TODO: Process javascript cookies
+ * onCompleted/onErrorOccurred:
+ * - get all cookies for request url
+ * - get third-party flag for each
+ * - apply rules
  */
 export class CookieFiltering {
-    /**
-     * Contains cookie to modify for each request
-     */
-    private cookiesMap: Map<number, {
-        tabId: number;
-        remove: boolean;
-        cookie: { name: string; url: string };
-        rules: NetworkRule[];
-    }[]> = new Map();
-
     /**
      * Cookie api implementation
      */
@@ -59,152 +40,97 @@ export class CookieFiltering {
      */
     private filteringLog: FilteringLog;
 
+    /**
+     * Constructor
+     *
+     * @param cookieManager
+     * @param filteringLog
+     */
     constructor(cookieManager: CookieApi, filteringLog: FilteringLog) {
         this.cookieManager = cookieManager;
         this.filteringLog = filteringLog;
     }
 
     /**
-     * Modifies request headers according to matching $cookie rules.
-     * TODO: Handle stealth cookie rules
+     * Parses response header set-cookie.
+     * Saves cookie third-party flag
      *
      * @param request
-     * @param requestHeaders Request headers
-     * @param cookieRules
-     * @return True if headers were modified
+     * @param responseHeaders Response headers
      */
-    public processRequestHeaders(request: Request, requestHeaders: Header[], cookieRules: NetworkRule[]): boolean {
-        if ((cookieRules.length === 0)) {
-            // Nothing to apply
-            return false;
-        }
+    public processResponseHeaders(request: Request, responseHeaders: Header[]): void {
+        const { requestId, thirdParty } = request;
 
-        const {
-            requestId, url, tabId,
-        } = request;
-
-        const cookieHeader = CookieFiltering.findHeaderByName(requestHeaders, 'Cookie');
-        if (!cookieHeader) {
-            return false;
-        }
-
-        const cookies = CookieUtils.parseCookie(cookieHeader.value);
-        if (cookies.length === 0) {
-            return false;
-        }
-
-        let cookieHeaderModified = false;
-
-        let iCookies = cookies.length;
-        // modifying cookies here is safe because we're iterating in reverse order
-        // eslint-disable-next-line no-cond-assign
-        while (iCookies > 0) {
-            iCookies -= 1;
-            const cookie = cookies[iCookies];
-
-            const cookieName = cookie.name;
-
-            // TODO: Detect third-party cookies
-
-            const bRule = CookieFiltering.lookupNotModifyingRule(cookieName, cookieRules);
-            if (bRule) {
-                if (!bRule.isWhitelist()) {
-                    cookies.splice(iCookies, 1);
-                    cookieHeaderModified = true;
-                }
-                this.scheduleProcessingCookie(requestId!, tabId!, cookieName, url, [bRule], true);
+        let iResponseHeaders = responseHeaders.length;
+        while (iResponseHeaders > 0) {
+            iResponseHeaders -= 1;
+            const header = responseHeaders[iResponseHeaders];
+            if (!header.name || header.name.toLowerCase() !== 'set-cookie') {
+                continue;
             }
 
-            const mRules = CookieFiltering.lookupModifyingRules(cookieName, cookieRules);
-            if (mRules && mRules.length > 0) {
-                this.scheduleProcessingCookie(requestId!, tabId!, cookieName, url, mRules, false);
+            const setCookie = CookieUtils.parseSetCookie(header.value);
+            if (!setCookie) {
+                continue;
             }
-        }
 
-        if (cookieHeaderModified) {
-            cookieHeader.value = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+            this.saveCookieInfo(requestId!, setCookie, !!thirdParty);
         }
-
-        return cookieHeaderModified;
     }
 
     /**
      * Modifies cookies with browser.api
      *
-     * @param requestId Request identifier
+     * @param request Request
+     * @param cookieRules rules
      */
-    public async modifyCookies(requestId: number): Promise<void> {
-        const values = this.cookiesMap.get(requestId);
-        if (!values || values.length === 0) {
+    public modifyCookies(request: Request, cookieRules: NetworkRule[]): void {
+        const {
+            requestId, url, tabId,
+        } = request;
+
+        const cookies = this.cookieManager.getCookies(url);
+
+        for (const cookie of cookies) {
+            const isThirdParty = this.getCookieInfo(requestId!, cookie);
+
+            this.applyRulesToCookie(url, cookie, isThirdParty, cookieRules, tabId!);
+        }
+    }
+
+    /**
+     * Applies rules to cookie
+     *
+     * @param url
+     * @param cookie
+     * @param isThirdPartyCookie
+     * @param cookieRules
+     * @param tabId
+     */
+    private applyRulesToCookie(
+        url: string,
+        cookie: BrowserCookie,
+        isThirdPartyCookie: boolean,
+        cookieRules: NetworkRule[],
+        tabId: number,
+    ): void {
+        const cookieName = cookie.name;
+
+        const bRule = CookieFiltering.lookupNotModifyingRule(cookieName, cookieRules, isThirdPartyCookie);
+        if (bRule) {
+            this.cookieManager.removeCookie(cookie.name, url);
+            this.filteringLog.addCookieEvent(tabId, cookie.name, [bRule]);
             return;
         }
 
-        for (const value of values) {
-            const cookie = value.cookie || {};
-
-            if (value.remove) {
-                this.cookieManager.removeCookie(cookie.name, cookie.url);
-                this.filteringLog.addCookieEvent(value.tabId, cookie.name, value.rules);
-            } else {
-                this.modifyCookie(value.tabId, cookie.name, cookie.url, value.rules);
+        const mRules = CookieFiltering.lookupModifyingRules(cookieName, cookieRules, isThirdPartyCookie);
+        if (mRules.length > 0) {
+            const appliedRules = CookieFiltering.applyRuleToBrowserCookie(cookie, mRules);
+            if (appliedRules.length > 0) {
+                this.cookieManager.modifyCookie(cookie, url);
+                this.filteringLog.addCookieEvent(tabId, cookie.name, appliedRules);
             }
         }
-
-        this.cookiesMap.delete(requestId);
-    }
-
-    /**
-     * Modifies cookie with rules
-     *
-     * @param tabId
-     * @param name
-     * @param url
-     * @param rules
-     */
-    private modifyCookie(tabId: number, name: string, url: string, rules: NetworkRule[]): void {
-        const cookies = this.cookieManager.getCookies(name, url);
-        for (let i = 0; i < cookies.length; i += 1) {
-            const cookie = cookies[i];
-            if (cookie) {
-                const mRules = CookieFiltering.applyRuleToBrowserCookie(cookie, rules);
-                if (mRules && mRules.length > 0) {
-                    this.cookieManager.modifyCookie(cookie, url);
-                    this.filteringLog.addCookieEvent(tabId, cookie.name, mRules);
-                }
-            }
-        }
-    }
-
-    /**
-     * Persist cookie for further processing
-     *
-     * @param requestId
-     * @param tabId
-     * @param name
-     * @param url
-     * @param rules
-     * @param remove
-     */
-    private scheduleProcessingCookie(
-        requestId: number,
-        tabId: number,
-        name: string,
-        url: string,
-        rules: NetworkRule[],
-        remove: boolean,
-    ): void {
-        let values = this.cookiesMap.get(requestId);
-        if (!values) {
-            values = [];
-            this.cookiesMap.set(requestId, values);
-        }
-
-        values.push({
-            tabId,
-            remove,
-            cookie: { name, url },
-            rules,
-        });
     }
 
     /**
@@ -248,6 +174,48 @@ export class CookieFiltering {
     }
 
     /**
+     * Finds a rule that doesn't modify cookie: i.e. this rule cancels cookie or it's a whitelist rule.
+     *
+     * @param cookieName Cookie name
+     * @param rules Matching rules
+     * @param isThirdPartyCookie
+     * @return Found rule or null
+     */
+    private static lookupNotModifyingRule(
+        cookieName: string,
+        rules: NetworkRule[],
+        isThirdPartyCookie: boolean,
+    ): NetworkRule | null {
+        for (let i = 0; i < rules.length; i += 1) {
+            const rule = rules[i];
+            if (!CookieFiltering.matchThirdParty(rule, isThirdPartyCookie)) {
+                continue;
+            }
+
+            const cookieModifier = rule.getAdvancedModifier() as CookieModifier;
+            if (cookieModifier.matches(cookieName) && !CookieFiltering.isModifyingRule(rule)) {
+                return rule;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Checks if rule and third party flag matches
+     *
+     * @param rule
+     * @param isThirdParty
+     */
+    private static matchThirdParty(rule: NetworkRule, isThirdParty: boolean): boolean {
+        if (!rule.isOptionEnabled(NetworkRuleOption.ThirdParty)) {
+            return true;
+        }
+
+        return isThirdParty;
+    }
+
+    /**
      * Checks if $cookie rule is modifying
      *
      * @param rule $cookie rule
@@ -260,42 +228,31 @@ export class CookieFiltering {
     }
 
     /**
-     * Finds a rule that doesn't modify cookie: i.e. this rule cancels cookie or it's a whitelist rule.
-     *
-     * @param cookieName Cookie name
-     * @param rules Matching rules
-     * @return Found rule or null
-     */
-    private static lookupNotModifyingRule(cookieName: string, rules: NetworkRule[]): NetworkRule | null {
-        if (rules && rules.length > 0) {
-            for (let i = 0; i < rules.length; i += 1) {
-                const rule = rules[i];
-                const cookieModifier = rule.getAdvancedModifier() as CookieModifier;
-                if (cookieModifier.matches(cookieName) && !CookieFiltering.isModifyingRule(rule)) {
-                    return rule;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * Finds rules that modify cookie
      *
      * @param cookieName Cookie name
      * @param rules Matching rules
+     * @param isThirdPartyCookie
      * @return Modifying rules
      */
-    private static lookupModifyingRules(cookieName: string, rules: NetworkRule[]): NetworkRule[] {
+    private static lookupModifyingRules(
+        cookieName: string,
+        rules: NetworkRule[],
+        isThirdPartyCookie: boolean,
+    ): NetworkRule[] {
         const result = [];
         if (rules && rules.length > 0) {
             for (let i = 0; i < rules.length; i += 1) {
                 const rule = rules[i];
+                if (!CookieFiltering.matchThirdParty(rule, isThirdPartyCookie)) {
+                    continue;
+                }
+
                 const cookieModifier = rule.getAdvancedModifier() as CookieModifier;
                 if (!cookieModifier.matches(cookieName)) {
                     continue;
                 }
+
                 // Blocking or whitelist rule exists
                 if (!CookieFiltering.isModifyingRule(rule)) {
                     return [];
@@ -308,22 +265,49 @@ export class CookieFiltering {
     }
 
     /**
-     * Finds header object by header name (case insensitive)
-     *
-     * @param headers Headers collection
-     * @param headerName Header name
-     * @returns header
+     * Map with third-arty cookie flags
      */
-    private static findHeaderByName(headers: Header[], headerName: string): Header | null {
-        if (headers) {
-            for (let i = 0; i < headers.length; i += 1) {
-                const header = headers[i];
-                if (header.name.toLowerCase() === headerName.toLowerCase()) {
-                    return header;
+    private cookiesMap: Map<number, {
+        cookieName: string;
+        thirdParty: boolean;
+    }[]> = new Map();
+
+    /**
+     * Saves third-party flag for cookie
+     *
+     * @param requestId
+     * @param cookie
+     * @param isThirdPartyRequest
+     */
+    private saveCookieInfo(requestId: number, cookie: Cookie, isThirdPartyRequest: boolean): void {
+        let values = this.cookiesMap.get(requestId);
+        if (!values) {
+            values = [];
+            this.cookiesMap.set(requestId, values);
+        }
+
+        values.push({
+            cookieName: cookie.name,
+            thirdParty: isThirdPartyRequest,
+        });
+    }
+
+    /**
+     * Gets third-party flag for cookie
+     *
+     * @param requestId
+     * @param cookie
+     */
+    private getCookieInfo(requestId: number, cookie: BrowserCookie): boolean {
+        const values = this.cookiesMap.get(requestId);
+        if (values && values.length > 0) {
+            for (const info of values!) {
+                if (info.cookieName === cookie.name) {
+                    return info.thirdParty;
                 }
             }
         }
 
-        return null;
+        return false;
     }
 }

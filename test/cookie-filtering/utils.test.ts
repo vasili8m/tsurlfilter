@@ -40,6 +40,33 @@ describe('Cookie utils - Cookie parsing', () => {
     });
 });
 
+describe('Cookie utils - Set-Cookie parsing', () => {
+    it('checks parse simple', () => {
+        const cookie = CookieUtils.parseSetCookie('value=123');
+        expect(cookie).not.toBeNull();
+        expect(cookie!.name).toBe('value');
+        expect(cookie!.value).toBe('123');
+    });
+
+    it('checks parse complicated', () => {
+        // eslint-disable-next-line max-len
+        const cookie = CookieUtils.parseSetCookie('user_session=wBDJ5-apskjfjkas124192--e5; path=/; expires=Tue, 06 Nov 2018 12:57:11 -0000; secure; HttpOnly; SameSite=Lax; Max-Age=100');
+        expect(cookie).not.toBeNull();
+        expect(cookie!.name).toBe('user_session');
+        expect(cookie!.value).toBe('wBDJ5-apskjfjkas124192--e5');
+    });
+
+    it('checks parse invalid', () => {
+        let cookie = CookieUtils.parseSetCookie('');
+        expect(cookie).toBeNull();
+
+        cookie = CookieUtils.parseSetCookie('empty');
+        expect(cookie).not.toBeNull();
+        expect(cookie!.name).toBe('empty');
+        expect(cookie!.value).toBe('');
+    });
+});
+
 describe('Cookie utils - update max age', () => {
     const cookie = new BrowserCookie('test', 'test');
 
