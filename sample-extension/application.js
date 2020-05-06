@@ -165,35 +165,11 @@ export class Application {
             }
         }
 
+        this.processResponseHeaders(request, responseHeaders);
+
         if (responseHeadersModified) {
             console.debug('Response headers modified');
             return { responseHeaders };
-        }
-    }
-
-    /**
-     * Called before request is sent to the remote endpoint.
-     *
-     * @param details Request details
-     * @returns {*} headers to send
-     */
-    // eslint-disable-next-line consistent-return
-    onBeforeSendHeaders(details) {
-        const requestHeaders = details.requestHeaders || [];
-
-        const requestType = Application.transformRequestType(details.type);
-        const request = new AGUrlFilter.Request(details.url, details.initiator, requestType);
-        request.requestId = details.requestId;
-        request.tabId = details.tabId;
-
-        let requestHeadersModified = false;
-        if (this.processRequestHeaders(request, requestHeaders)) {
-            requestHeadersModified = true;
-        }
-
-        if (requestHeadersModified) {
-            console.debug('Request headers modified');
-            return { requestHeaders };
         }
     }
 
@@ -207,26 +183,17 @@ export class Application {
 
         // Permission is not granted
         if (!this.browser.cookies) {
-            return false;
+            throw new Error('No "cookie" permission in the extension manifest');
         }
 
-        return this.cookieFiltering.modifyCookies(details.requestId);
-    }
+        const requestType = Application.transformRequestType(details.type);
+        const request = new AGUrlFilter.Request(details.url, details.initiator, requestType);
+        request.requestId = details.requestId;
+        request.tabId = details.tabId;
 
-    /**
-     * Wrapper for webRequest.onErrorOccurred event
-     *
-     * @param details
-     */
-    onErrorOccurred(details) {
-        console.debug('Processing onErrorOccurred event');
+        const rules = this.getCookieRules(request);
 
-        // Permission is not granted
-        if (!this.browser.cookies) {
-            return false;
-        }
-
-        return this.cookieFiltering.modifyCookies(details.requestId);
+        this.cookieFiltering.modifyCookies(request, rules);
     }
 
     /**
@@ -247,17 +214,11 @@ export class Application {
      * @param headers
      * @return {null}
      */
-    processRequestHeaders(request, headers) {
-        console.debug('Processing request headers');
+    processResponseHeaders(request, headers) {
+        console.debug('Processing response headers');
         console.debug(headers);
 
-        // Permission is not granted
-        if (!this.browser.cookies) {
-            return false;
-        }
-
-        const cookieRules = this.getCookieRules(request);
-        return this.cookieFiltering.processRequestHeaders(request, headers, cookieRules);
+        this.cookieFiltering.processResponseHeaders(request, headers);
     }
 
     /**

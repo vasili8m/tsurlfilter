@@ -64,18 +64,6 @@ import { Application } from './application.js';
     }, { urls: ['<all_urls>'] }, ['responseHeaders', 'blocking']);
 
     /**
-     * Add listener on before send headers
-     */
-    chrome.webRequest.onBeforeSendHeaders.addListener((details) => {
-        if (!isHttpOrWsRequest(details.url)) {
-            return;
-        }
-
-        // eslint-disable-next-line consistent-return
-        return application.onBeforeSendHeaders(details);
-    }, { urls: ['<all_urls>'] }, ['requestHeaders', 'blocking']);
-
-    /**
      * Request context recording
      */
     chrome.webRequest.onCompleted.addListener((details) => {
@@ -83,16 +71,6 @@ import { Application } from './application.js';
             return;
         }
 
-        // eslint-disable-next-line consistent-return
-        return application.onCompleted(details);
-    }, { urls: ['<all_urls>'] }, ['responseHeaders', 'blocking']);
-
-    chrome.webRequest.onErrorOccurred.addListener((details) => {
-        if (!isHttpOrWsRequest(details.url)) {
-            return;
-        }
-
-        // eslint-disable-next-line consistent-return
-        return application.onErrorOccurred(details);
-    }, { urls: ['<all_urls>'] });
+        application.onCompleted(details);
+    });
 })();

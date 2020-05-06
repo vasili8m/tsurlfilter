@@ -40,17 +40,7 @@ export class CookieApi {
      * @return {Promise<any>}
      */
     async modifyCookie(apiCookie, url) {
-        const update = {
-            url,
-            name: apiCookie.name,
-            value: apiCookie.value,
-            domain: apiCookie.domain,
-            path: apiCookie.path,
-            secure: apiCookie.secure,
-            httpOnly: apiCookie.httpOnly,
-            sameSite: apiCookie.sameSite,
-            expirationDate: apiCookie.expirationDate,
-        };
+        const update = { url, ...apiCookie };
         /**
          * Removes domain for host-only cookies:
          * https://developer.chrome.com/extensions/cookies#method-set
@@ -74,12 +64,11 @@ export class CookieApi {
     /**
      * Get cookies
      *
-     * @param name
      * @param url
      * @return {Array<BrowserApiCookie>}
      */
-    async getCookies(name, url) {
-        return this.apiGetCookies(name, url);
+    async getCookies(url) {
+        return this.apiGetCookies(undefined, url);
     }
 
     /**
@@ -105,7 +94,7 @@ export class CookieApi {
     }
 
     /**
-     * Get all cookies by name and url
+     * Get all cookies by url
      *
      * @param {string} name Cookie name
      * @param {string} url Cookie url
