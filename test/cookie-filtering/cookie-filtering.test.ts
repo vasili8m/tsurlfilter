@@ -87,11 +87,11 @@ describe('Cookie filtering', () => {
         cookieFiltering.modifyCookies(request, rules);
 
         let browserCookie = new BrowserCookie('some_cookie', 'test_value');
-        browserCookie.expires = new Date(Date.parse('06 Nov 1999'));
+        browserCookie.expires = new Date('1999-11-06T20:00:00.000Z');
         cookieManager.setCookies([browserCookie]);
         cookieFiltering.modifyCookies(request, rules);
         expect(cookieManager.modifyCookie).toHaveBeenLastCalledWith({
-            expires: new Date('1999-11-05T22:00:00.000Z'), name: 'some_cookie', sameSite: 'lax', value: 'test_value',
+            expires: new Date('1999-11-06T20:00:00.000Z'), name: 'some_cookie', sameSite: 'lax', value: 'test_value',
         }, 'https://example.org');
 
         browserCookie = new BrowserCookie('some_cookie', 'test_value');
