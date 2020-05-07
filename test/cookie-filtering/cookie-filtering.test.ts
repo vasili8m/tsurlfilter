@@ -161,7 +161,7 @@ describe('Cookie filtering', () => {
             new NetworkRule('||example.org^$cookie=m_user;sameSite=lax', 1),
         ];
 
-        const result = CookieFiltering.getBlockingRules(rules);
+        const result = cookieFiltering.getBlockingRules(rules);
         expect(result).toHaveLength(1);
     });
 });
