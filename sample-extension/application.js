@@ -3,6 +3,7 @@ import * as AGUrlFilter from './engine.js';
 import { applyCss, applyScripts } from './cosmetic.js';
 import { FilteringLog } from './filtering-log/filtering-log.js';
 import { CookieApi } from './cookie/cookie-api.js';
+import { applyCookieRules } from './cookie/cookie-helper.js';
 
 /**
  * Extension application class
@@ -194,6 +195,10 @@ export class Application {
         const rules = this.getCookieRules(request);
 
         this.cookieFiltering.modifyCookies(request, rules);
+
+        // First-party cookie blocking rules
+        const blockingRules = this.cookieFiltering.getBlockingRules(rules);
+        applyCookieRules(details.tabId, blockingRules);
     }
 
     /**

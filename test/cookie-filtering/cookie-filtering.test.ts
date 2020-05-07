@@ -53,7 +53,6 @@ describe('Cookie filtering', () => {
             new NetworkRule('||example.org^$cookie=c_user', 1),
         ];
 
-        // const setCookieHeader = { name: 'set-cookie', value: 'c_user=test;' };
         const responseHeaders = createTestHeaders([]);
         cookieFiltering.processResponseHeaders(request, responseHeaders);
 
@@ -153,5 +152,16 @@ describe('Cookie filtering', () => {
         cookieManager.setCookies([new BrowserCookie('third_party_user', 'test')]);
         cookieFiltering.modifyCookies(request, rules);
         expect(cookieManager.removeCookie).toHaveBeenLastCalledWith('third_party_user', 'https://example.org');
+    });
+
+    it('filters blocking rules', () => {
+        const rules = [
+            new NetworkRule('||example.org^$cookie=c_user', 1),
+            new NetworkRule('||example.org^$third-party,cookie=third_party_user', 1),
+            new NetworkRule('||example.org^$cookie=m_user;sameSite=lax', 1),
+        ];
+
+        const result = CookieFiltering.getBlockingRules(rules);
+        expect(result).toHaveLength(1);
     });
 });

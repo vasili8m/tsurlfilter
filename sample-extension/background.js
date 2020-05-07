@@ -72,5 +72,5 @@ import { Application } from './application.js';
         }
 
         application.onCompleted(details);
-    });
+    }, { urls: ['<all_urls>'] });
 })();

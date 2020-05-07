@@ -99,6 +99,30 @@ export class CookieFiltering {
     }
 
     /**
+     * Filters blocking first-party rules
+     *
+     * @param rules
+     */
+    // eslint-disable-next-line class-methods-use-this
+    public getBlockingRules(rules: NetworkRule[]): NetworkRule[] {
+        const result = [];
+        for (let i = 0; i < rules.length; i += 1) {
+            const rule = rules[i];
+            if (!CookieFiltering.matchThirdParty(rule, false)) {
+                continue;
+            }
+
+            if (CookieFiltering.isModifyingRule(rule)) {
+                continue;
+            }
+
+            result.push(rule);
+        }
+
+        return result;
+    }
+
+    /**
      * Applies rules to cookie
      *
      * @param url
