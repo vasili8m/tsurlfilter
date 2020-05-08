@@ -128,6 +128,8 @@ export class CookieFiltering implements ICookieFiltering {
 
             this.applyRulesToCookie(url, cookie, isThirdParty, cookieRules, tabId!);
         }
+
+        this.cookiesMap.delete(requestId!);
     }
 
     /**
