@@ -28,8 +28,40 @@ interface Header {
  * - get all cookies for request url
  * - get third-party flag for each
  * - apply rules
+ *
+ * onCompleted:
+ * - apply blocking first-party rules via content script
  */
-export class CookieFiltering {
+interface ICookieFiltering {
+    /**
+     * Parses response header set-cookie.
+     * Saves cookie third-party flag
+     *
+     * @param request
+     * @param responseHeaders Response headers
+     */
+    processResponseHeaders(request: Request, responseHeaders: Header[]): void;
+
+    /**
+     * Modifies cookies with browser.api
+     *
+     * @param request Request
+     * @param cookieRules rules
+     */
+    modifyCookies(request: Request, cookieRules: NetworkRule[]): void;
+
+    /**
+     * Filters blocking first-party rules
+     *
+     * @param rules
+     */
+    getBlockingRules(rules: NetworkRule[]): NetworkRule[];
+}
+
+/**
+ * Cookie filtering module implementation
+ */
+export class CookieFiltering implements ICookieFiltering {
     /**
      * Cookie api implementation
      */
