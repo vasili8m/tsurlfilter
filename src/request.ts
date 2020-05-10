@@ -42,7 +42,7 @@ export class Request {
      * Third-party basically means that Domain != SourceDomain.
      * It can be null in the case when there is no sourceUrl at all.
      */
-    public readonly thirdParty: boolean | null;
+    public thirdParty: boolean | null;
 
     /**
      * Original request URL.

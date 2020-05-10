@@ -94,7 +94,7 @@ export class FilteringLog {
     /**
      * Add cookie event to log
      *
-     * @param {Number} tabId - tab id
+     * @param {Number} tabId - tab id or undefined
      * @param {String} cookieName - Cookie name
      * @param {Object} rules - cookie rules triggered
      */

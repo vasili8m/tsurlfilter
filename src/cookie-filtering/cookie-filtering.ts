@@ -4,8 +4,9 @@ import { NetworkRule, NetworkRuleOption } from '../rules/network-rule';
 import CookieUtils from './utils';
 import { CookieModifier } from '../modifiers/cookie-modifier';
 import { BrowserCookie } from './browser-cookie';
-import { CookieApi } from './cookie-api';
-import { Cookie } from './cookie';
+import { CookieApi, OnChangedCause } from './cookie-api';
+import { CookieJournal } from './cookie-journal';
+import { RulesFinder } from './rules-finder';
 
 /**
  * Header interface
@@ -31,6 +32,12 @@ interface Header {
  *
  * onCompleted:
  * - apply blocking first-party rules via content script
+ *
+ * onCookieChanged:
+ * - get third-party flag for updated cookie
+ * - get rules for cookie
+ * - apply rules
+ *
  */
 interface ICookieFiltering {
     /**
@@ -56,6 +63,22 @@ interface ICookieFiltering {
      * @param rules
      */
     getBlockingRules(rules: NetworkRule[]): NetworkRule[];
+
+    /**
+     * On cookie changed handler
+     *
+     * - check if cookie has been handled already
+     * - get third-party flag for updated cookie
+     * - get rules for cookie
+     * - apply rules
+     *
+     * @param changeInfo
+     */
+    onCookieChanged(changeInfo: {
+        removed: boolean;
+        cookie: BrowserCookie;
+        cause: OnChangedCause;
+    }): void;
 }
 
 /**
@@ -73,14 +96,68 @@ export class CookieFiltering implements ICookieFiltering {
     private filteringLog: FilteringLog;
 
     /**
+     * Cookie journal
+     */
+    private journal: CookieJournal;
+
+    /**
+     * Cookie rules finder implementation
+     */
+    private rulesFinder: RulesFinder;
+
+    /**
      * Constructor
      *
      * @param cookieManager
      * @param filteringLog
+     * @param rulesFinder
      */
-    constructor(cookieManager: CookieApi, filteringLog: FilteringLog) {
+    constructor(cookieManager: CookieApi, filteringLog: FilteringLog, rulesFinder: RulesFinder) {
         this.cookieManager = cookieManager;
         this.filteringLog = filteringLog;
+        this.journal = new CookieJournal();
+        this.rulesFinder = rulesFinder;
+
+        this.cookieManager.setOnChangedListener(this.onCookieChanged.bind(this));
+    }
+
+    /**
+     * On cookie changed handler
+     *
+     * - check if cookie has been handled already
+     * - get third-party flag for updated cookie
+     * - get rules for cookie
+     * - apply rules
+     *
+     * @param changeInfo
+     */
+    public onCookieChanged(changeInfo: {
+        removed: boolean;
+        cookie: BrowserCookie;
+        cause: OnChangedCause;
+    }): void {
+        const { cookie } = changeInfo;
+
+        if (changeInfo.removed) {
+            this.journal.remove(cookie);
+            // Skip removed cookies
+            return;
+        }
+
+        if (this.journal.isProcessed(cookie)) {
+            this.journal.remove(cookie);
+            // This cookie has been handled already
+            return;
+        }
+
+        // TODO: Create better url
+        const cookieUrl = `http://${cookie.domain}`;
+        const isThirdParty = this.journal.isThirdParty(cookie);
+        const cookieRules = this.rulesFinder.getRulesForCookie(cookieUrl, isThirdParty);
+
+        this.applyRulesToCookie(cookieUrl, cookie, isThirdParty, cookieRules, undefined);
+
+        this.journal.setProcessed(cookie);
     }
 
     /**
@@ -91,7 +168,7 @@ export class CookieFiltering implements ICookieFiltering {
      * @param responseHeaders Response headers
      */
     public processResponseHeaders(request: Request, responseHeaders: Header[]): void {
-        const { requestId, thirdParty } = request;
+        const { thirdParty, domain } = request;
 
         let iResponseHeaders = responseHeaders.length;
         while (iResponseHeaders > 0) {
@@ -106,7 +183,7 @@ export class CookieFiltering implements ICookieFiltering {
                 continue;
             }
 
-            this.saveCookieInfo(requestId!, setCookie, !!thirdParty);
+            this.journal.setThirdParty(setCookie.name, domain, !!thirdParty);
         }
     }
 
@@ -117,19 +194,16 @@ export class CookieFiltering implements ICookieFiltering {
      * @param cookieRules rules
      */
     public modifyCookies(request: Request, cookieRules: NetworkRule[]): void {
-        const {
-            requestId, url, tabId,
-        } = request;
+        const { url, tabId } = request;
 
         const cookies = this.cookieManager.getCookies(url);
 
         for (const cookie of cookies) {
-            const isThirdParty = this.getCookieInfo(requestId!, cookie);
-
+            const isThirdParty = this.journal.isThirdParty(cookie);
             this.applyRulesToCookie(url, cookie, isThirdParty, cookieRules, tabId!);
-        }
 
-        this.cookiesMap.delete(requestId!);
+            this.journal.setProcessed(cookie);
+        }
     }
 
     /**
@@ -170,7 +244,7 @@ export class CookieFiltering implements ICookieFiltering {
         cookie: BrowserCookie,
         isThirdPartyCookie: boolean,
         cookieRules: NetworkRule[],
-        tabId: number,
+        tabId: number | undefined,
     ): void {
         const cookieName = cookie.name;
 
@@ -320,52 +394,5 @@ export class CookieFiltering implements ICookieFiltering {
             }
         }
         return result;
-    }
-
-    /**
-     * Map with third-arty cookie flags
-     */
-    private cookiesMap: Map<number, {
-        cookieName: string;
-        thirdParty: boolean;
-    }[]> = new Map();
-
-    /**
-     * Saves third-party flag for cookie
-     *
-     * @param requestId
-     * @param cookie
-     * @param isThirdPartyRequest
-     */
-    private saveCookieInfo(requestId: number, cookie: Cookie, isThirdPartyRequest: boolean): void {
-        let values = this.cookiesMap.get(requestId);
-        if (!values) {
-            values = [];
-            this.cookiesMap.set(requestId, values);
-        }
-
-        values.push({
-            cookieName: cookie.name,
-            thirdParty: isThirdPartyRequest,
-        });
-    }
-
-    /**
-     * Gets third-party flag for cookie
-     *
-     * @param requestId
-     * @param cookie
-     */
-    private getCookieInfo(requestId: number, cookie: BrowserCookie): boolean {
-        const values = this.cookiesMap.get(requestId);
-        if (values && values.length > 0) {
-            for (const info of values!) {
-                if (info.cookieName === cookie.name) {
-                    return info.thirdParty;
-                }
-            }
-        }
-
-        return false;
     }
 }

@@ -31,5 +31,5 @@ export interface FilteringLog {
      * @param cookieName
      * @param rules
      */
-    addCookieEvent(tabId: number, cookieName: string, rules: NetworkRule[]): void;
+    addCookieEvent(tabId: number | undefined, cookieName: string, rules: NetworkRule[]): void;
 }

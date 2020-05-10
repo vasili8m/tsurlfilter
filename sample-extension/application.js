@@ -59,7 +59,13 @@ export class Application {
 
         this.engine = new AGUrlFilter.Engine(ruleStorage, config);
         this.contentFiltering = new AGUrlFilter.ContentFiltering(this.filteringLog);
-        this.cookieFiltering = new AGUrlFilter.CookieFiltering(new CookieApi(this.browser), this.filteringLog);
+        this.cookieFiltering = new AGUrlFilter.CookieFiltering(new CookieApi(this.browser), this.filteringLog, {
+            getRulesForCookie: (url, thirdParty) => {
+                const request = new AGUrlFilter.Request(url, null, AGUrlFilter.RequestType.Document);
+                request.thirdParty = thirdParty;
+                return this.getCookieRules(request);
+            },
+        });
 
         console.log('Starting url filter engine..ok');
     }

@@ -20,6 +20,14 @@ export class CookieApi {
     }
 
     /**
+     * Sets onChanged event listener
+     * @param callback
+     */
+    setOnChangedListener(callback) {
+        this.browser.cookies.onChanged.addListener(callback);
+    }
+
+    /**
      * Removes cookie
      *
      * @param name
