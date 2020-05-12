@@ -266,9 +266,9 @@ export class CookieFiltering implements ICookieFiltering {
     }
 
     /**
-     * Modifies set-cookie header with rules
+     * Modifies instance of BrowserCookie with provided rules
      *
-     * @param cookie Cookie header to modify
+     * @param cookie Cookie modify
      * @param rules Cookie matching rules
      * @return applied rules
      *

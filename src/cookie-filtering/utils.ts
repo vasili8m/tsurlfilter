@@ -8,36 +8,6 @@ import { BrowserCookie } from './browser-cookie';
  */
 export default class CookieUtils {
     /**
-     * Parse an HTTP Cookie header string and return an object with all cookie name-value pairs.
-     *
-     * @param cookieValue HTTP Cookie value
-     * @returns Array of cookie name-value pairs
-     */
-    public static parseCookie(cookieValue: string): Cookie[] {
-        const cookies: Cookie[] = [];
-
-        // Split Cookie values
-        const pairs = cookieValue.split(/; */);
-
-        for (let i = 0; i < pairs.length; i += 1) {
-            const pair = pairs[i];
-            const eqIdx = pair.indexOf('=');
-
-            // skip things that don't look like key=value
-            if (eqIdx < 0) {
-                continue;
-            }
-
-            const key = pair.substr(0, eqIdx).trim();
-            const value = pair.substr(eqIdx + 1, pair.length).trim();
-
-            cookies.push(new Cookie(key, value));
-        }
-
-        return cookies;
-    }
-
-    /**
      * Parses "Set-Cookie" header value and returns a cookie object with its properties
      *
      * @param setCookieValue "Set-Cookie" header value to parse
@@ -80,10 +50,10 @@ export default class CookieUtils {
             if (browserCookie.expires) {
                 // eslint-disable-next-line no-param-reassign
                 browserCookie.expires = new Date(newCookieExpiresTimeSec * 1000);
-            } else {
-                // eslint-disable-next-line no-param-reassign
-                browserCookie.maxAge = maxAge;
             }
+
+            // eslint-disable-next-line no-param-reassign
+            browserCookie.maxAge = maxAge;
 
             return true;
         }
