@@ -87,15 +87,17 @@ export const applyCss = (tabId, cosmeticResult) => {
                     // Apply extended css stylesheets
                     const { ExtendedCss } = AGUrlFilter;
                     const extendedCssContent = \`${extendedCssStylesheets}\`;
-                    const extendedCss = new ExtendedCss({
-                        styleSheet: extendedCssContent,
-                        beforeStyleApplied: (el) => {
-                            return cssHitsCounter.countAffectedByExtendedCss(el);
-                        }
-                    });
-                    extendedCss.apply();
+                    if (extendedCssContent) {
+                        const extendedCss = new ExtendedCss({
+                            styleSheet: extendedCssContent,
+                            beforeStyleApplied: (el) => {
+                                return cssHitsCounter.countAffectedByExtendedCss(el);
+                            }
+                        });
+                        extendedCss.apply();
 
-                    console.debug('Extended css applied');
+                        console.debug('Extended css applied');
+                    }
                 })();
             `,
     });
