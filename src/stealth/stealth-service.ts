@@ -103,7 +103,6 @@ export class StealthService {
     /**
      * Returns synthetic set of rules matching the specified request
      */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public getCookieRules(request: Request): NetworkRule[] {
         const result: NetworkRule[] = [];
 

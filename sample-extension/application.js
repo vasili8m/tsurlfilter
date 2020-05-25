@@ -234,7 +234,13 @@ export class Application {
      */
     getCookieRules(request) {
         const result = this.engine.matchRequest(request);
-        return result.getCookieRules();
+        const cookieRules = result.getCookieRules();
+        if (cookieRules.length > 0) {
+            return cookieRules;
+        }
+
+        // If cookie rules not found - apply stealth rules
+        return this.stealthService.getCookieRules();
     }
 
     /**
