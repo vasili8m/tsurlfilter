@@ -146,18 +146,34 @@ export class CookieFiltering implements ICookieFiltering {
 
         if (this.journal.isProcessed(cookie)) {
             this.journal.remove(cookie);
-            // This cookie has been handled already
+            /**
+             * This cookie has been handled already
+             * We don't process it again cause:
+             * - in case page restores it, we will stuck here
+             * - we don't want to store dead records
+             */
             return;
         }
 
-        // TODO: Create better url
-        const cookieUrl = `http://${cookie.domain}`;
+        const cookieUrl = CookieFiltering.createCookieUrl(cookie);
         const isThirdParty = this.journal.isThirdParty(cookie);
         const cookieRules = this.rulesFinder.getRulesForCookie(cookieUrl, isThirdParty);
 
         this.applyRulesToCookie(cookieUrl, cookie, isThirdParty, cookieRules, undefined);
 
         this.journal.setProcessed(cookie);
+    }
+
+    /**
+     * Creates url matching provided cookie
+     *
+     * @param cookie
+     */
+    private static createCookieUrl(cookie: BrowserCookie): string {
+        const protocol = cookie.secure ? 'https' : 'http';
+        const path = cookie.path ? `/${cookie.path}` : '';
+
+        return `${protocol}://${cookie.domain}${path}`;
     }
 
     /**

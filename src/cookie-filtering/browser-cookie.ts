@@ -39,6 +39,11 @@ export class BrowserCookie {
     sameSite: string | undefined;
 
     /**
+     * True if the cookie is marked as Secure (i.e. its scope is limited to secure channels, typically HTTPS).
+     */
+    secure: boolean | undefined;
+
+    /**
      * Constructor
      *
      * @param name
