@@ -3,6 +3,7 @@ import { RuleStorageScanner } from './scanner/rule-storage-scanner';
 import { IRule } from '../rules/rule';
 import { RuleScanner } from './scanner/rule-scanner';
 import { NetworkRule } from '../rules/network-rule';
+import { HostRule } from '../rules/host-rule';
 
 /**
  * RuleStorage is an abstraction that combines several rule lists
@@ -32,7 +33,7 @@ export class RuleStorage {
     /**
      * cache with the rules which were retrieved.
      */
-    private readonly cache: Map<number, IRule>;
+    private readonly cache: Map<bigint, IRule>;
 
     /**
      * Constructor
@@ -44,7 +45,7 @@ export class RuleStorage {
     constructor(lists: IRuleList[]) {
         this.lists = lists;
         this.listsMap = new Map<number, IRuleList>();
-        this.cache = new Map<number, IRule>();
+        this.cache = new Map<bigint, IRule>();
 
         this.lists.forEach((list) => {
             const filterListId = list.getId();
@@ -72,7 +73,7 @@ export class RuleStorage {
      *
      * @param storageIdx the lookup index that you can get from the rule storage scanner
      */
-    retrieveRule(storageIdx: number): IRule | null {
+    retrieveRule(storageIdx: bigint): IRule | null {
         const rule = this.cache.get(storageIdx);
         if (rule) {
             return rule;
@@ -100,7 +101,7 @@ export class RuleStorage {
      * @param storageIdx
      * @return the rule or nil in any other case (not found or error)
      */
-    retrieveNetworkRule(storageIdx: number): NetworkRule | null {
+    retrieveNetworkRule(storageIdx: bigint): NetworkRule | null {
         const rule = this.retrieveRule(storageIdx);
         if (!rule) {
             return null;
@@ -108,6 +109,25 @@ export class RuleStorage {
 
         if (rule instanceof NetworkRule) {
             return rule as NetworkRule;
+        }
+
+        return null;
+    }
+
+    /**
+     * RetrieveHostRule is a helper method that retrieves a host rule from the storage
+     *
+     * @param storageIdx
+     * @return the rule or nil in any other case (not found or error)
+     */
+    retrieveHostRule(storageIdx: bigint): HostRule | null {
+        const rule = this.retrieveRule(storageIdx);
+        if (!rule) {
+            return null;
+        }
+
+        if (rule instanceof HostRule) {
+            return rule as HostRule;
         }
 
         return null;

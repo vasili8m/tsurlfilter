@@ -40,10 +40,16 @@ export class MatchingResult {
     public readonly cookieRules: NetworkRule[] | null;
 
     /**
-     * ReplaceRules -- a set of rules modifying the response's content
+     * ReplaceRules - a set of rules modifying the response's content
      * See $replace modifier
      */
     public readonly replaceRules: NetworkRule[] | null;
+
+    /**
+     * RemoveParam rules - a set of rules modifying url query parameters
+     * See $removeparam modifier
+     */
+    public readonly removeParamRules: NetworkRule[] | null;
 
     /**
      * StealthRule - this is a whitelist rule that negates stealth mode features
@@ -64,6 +70,7 @@ export class MatchingResult {
         this.cspRules = null;
         this.cookieRules = null;
         this.replaceRules = null;
+        this.removeParamRules = null;
         this.cspRules = null;
         this.stealthRule = null;
 
@@ -119,6 +126,13 @@ export class MatchingResult {
                 this.replaceRules.push(rule);
                 continue;
             }
+            if (rule.isOptionEnabled(NetworkRuleOption.RemoveParam)) {
+                if (!this.removeParamRules) {
+                    this.removeParamRules = [];
+                }
+                this.removeParamRules.push(rule);
+                continue;
+            }
             if (rule.isOptionEnabled(NetworkRuleOption.Csp)) {
                 if (!this.cspRules) {
                     this.cspRules = [];
@@ -164,11 +178,18 @@ export class MatchingResult {
         // 2. Document-level exception rules with $content or $document modifiers do disable $replace rules
         //  for requests matching them.
         if (this.replaceRules) {
-            // TODO: implement the $replace selection algorithm
-            // 1. check that ReplaceRules aren't negated by themselves (for instance,
-            //  that there's no @@||example.org^$replace rule)
-            // 2. check that they aren't disabled by a document-level exception (check both DocumentRule and BasicRule)
-            // 3. return nil if that is so
+            const basic = this.basicRule || this.documentRule;
+            if (basic && basic.isWhitelist()) {
+                if (basic.isDocumentWhitelistRule()) {
+                    return basic;
+                }
+
+                if (basic.isOptionEnabled(NetworkRuleOption.Replace)
+                    || basic.isOptionEnabled(NetworkRuleOption.Content)) {
+                    return basic;
+                }
+            }
+
             return null;
         }
 
@@ -222,6 +243,8 @@ export class MatchingResult {
         if (!this.replaceRules) {
             return [];
         }
+
+        // TODO: Look up for whitelist $content rule
 
         return MatchingResult.filterAdvancedModifierRules(this.replaceRules,
             (rule) => ((x): boolean => x.getAdvancedModifierValue() === rule.getAdvancedModifierValue()));
@@ -346,6 +369,18 @@ export class MatchingResult {
 
         return MatchingResult.filterAdvancedModifierRules(this.cookieRules,
             whitelistPredicate);
+    }
+
+    /**
+     * Returns an array of removeparam rules
+     */
+    getRemoveParamRules(): NetworkRule[] {
+        if (!this.removeParamRules) {
+            return [];
+        }
+
+        return MatchingResult.filterAdvancedModifierRules(this.removeParamRules,
+            (rule) => ((x): boolean => x.getAdvancedModifierValue() === rule.getAdvancedModifierValue()));
     }
 
     /**

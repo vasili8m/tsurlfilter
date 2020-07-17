@@ -235,6 +235,9 @@ describe('NetworkRule constructor', () => {
 
         checkRequestType('other', RequestType.Other, true);
         checkRequestType('~other', RequestType.Other, false);
+
+        checkRequestType('ping', RequestType.Ping, true);
+        checkRequestType('~ping', RequestType.Ping, false);
     });
 
     function assertBadfilterNegates(rule: string, badfilter: string, expected: boolean): void {
@@ -457,6 +460,11 @@ describe('NetworkRule.match', () => {
         request = new Request('https://example.org/', null, RequestType.Document);
         expect(rule.match(request)).toEqual(true);
     });
+    it('works when content type ping is applied properly', () => {
+        const rule = new NetworkRule('||example.org^$ping', 0);
+        const request = new Request('https://example.org/', null, RequestType.Ping);
+        expect(rule.match(request)).toEqual(true);
+    });
 });
 
 describe('NetworkRule.isHigherPriority', () => {
@@ -500,5 +508,35 @@ describe('NetworkRule.isHigherPriority', () => {
         compareRulesPriority('||example.org$domain=~example.org', '||example.org$script,stylesheet', false);
         compareRulesPriority('||example.org$domain=~example.org',
             '||example.org$script,stylesheet,domain=~example.org', false);
+    });
+});
+
+describe('Misc', () => {
+    it('checks isHostLevelNetworkRule', () => {
+        let rule;
+
+        rule = new NetworkRule('||example.org^$important', 0);
+        expect(rule.isHostLevelNetworkRule()).toBeTruthy();
+
+        rule = new NetworkRule('||example.org^$important,badfilter', 0);
+        expect(rule.isHostLevelNetworkRule()).toBeTruthy();
+
+        rule = new NetworkRule('||example.org^$badfilter', 0);
+        expect(rule.isHostLevelNetworkRule()).toBeTruthy();
+
+        rule = new NetworkRule('||example.org^', 0);
+        expect(rule.isHostLevelNetworkRule()).toBeTruthy();
+
+        rule = new NetworkRule('@@||example.org^', 0);
+        expect(rule.isHostLevelNetworkRule()).toBeTruthy();
+
+        rule = new NetworkRule('||example.org^$~third-party', 0);
+        expect(rule.isHostLevelNetworkRule()).toBeFalsy();
+
+        rule = new NetworkRule('||example.org^$third-party', 0);
+        expect(rule.isHostLevelNetworkRule()).toBeFalsy();
+
+        rule = new NetworkRule('||example.org^$domain=example.com', 0);
+        expect(rule.isHostLevelNetworkRule()).toBeFalsy();
     });
 });

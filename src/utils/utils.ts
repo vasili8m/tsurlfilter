@@ -68,6 +68,40 @@ export function startsAtIndexWith(str: string, startIndex: number, substr: strin
 }
 
 /**
+ * Checks if str has unquoted substr
+ *
+ * @param str
+ * @param substr
+ */
+export function hasUnquotedSubstring(str: string, substr: string): boolean {
+    const quotes = ['"', "'", '/'];
+
+    const stack: string[] = [];
+    for (let i = 0; i < str.length; i += 1) {
+        const cursor = str[i];
+
+        if (stack.length === 0) {
+            if (startsAtIndexWith(str, i, substr)) {
+                return true;
+            }
+        }
+
+        if (quotes.indexOf(cursor) >= 0
+            && (i === 0 || str[i - 1] !== '\\')) {
+            const last = stack.pop();
+            if (!last) {
+                stack.push(cursor);
+            } else if (last !== cursor) {
+                stack.push(last);
+                stack.push(cursor);
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
  * djb2 hash algorithm
  *
  * @param str string to get hash
@@ -201,4 +235,46 @@ export function countElementsInEnum(value: number, enumerationType: any): number
     }
 
     return count;
+}
+
+/**
+ * Removes query params from url by regexp
+ *
+ * @param url
+ * @param regExp
+ */
+export function cleanUrlParamByRegExp(url: string, regExp: RegExp): string {
+    const urlPieces = url.split('?');
+
+    // If no params, nothing to modify
+    if (urlPieces.length === 1) {
+        return url;
+    }
+
+    urlPieces[1] = urlPieces[1].replace(regExp, '');
+
+    // Cleanup empty params (p0=0&=2&=3)
+    urlPieces[1] = urlPieces[1]
+        .split('&')
+        .filter((x) => x && !x.startsWith('='))
+        .join('&');
+
+    // If we've collapsed the URL to the point where there's an '&' against the '?'
+    // then we need to get rid of that.
+    while (urlPieces[1].charAt(0) === '&') {
+        urlPieces[1] = urlPieces[1].substr(1);
+    }
+
+    return urlPieces[1] ? urlPieces.join('?') : urlPieces[0];
+}
+
+/**
+ * Removes query params from url by array of params
+ *
+ * @param url
+ * @param params
+ */
+export function cleanUrlParam(url: string, params: string[]): string {
+    const trackingParametersRegExp = new RegExp(`((^|&)(${params.join('|')})=[^&#]*)`, 'ig');
+    return cleanUrlParamByRegExp(url, trackingParametersRegExp);
 }

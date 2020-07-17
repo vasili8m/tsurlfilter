@@ -2,7 +2,8 @@ import { CosmeticRule } from './cosmetic-rule';
 import { NetworkRule } from './network-rule';
 import { IRule } from './rule';
 import { findCosmeticRuleMarker } from './cosmetic-rule-marker';
-import { RuleConverter } from './rule-converter';
+import { HostRule } from './host-rule';
+import { logger } from '../utils/logger';
 
 /**
  * Rule builder class
@@ -22,34 +23,19 @@ export class RuleUtils {
         }
 
         const line = text.trim();
-
-        let conversionResult;
         try {
-            conversionResult = RuleConverter.convertRule(line);
-        } catch (ex) {
-            // console.debug('Cannot convert rule from filter {0}: {1}, cause {2}', filterId || 0, ruleText, ex);
-            // TODO: Log error
-        }
-
-        if (!conversionResult) {
-            return null;
-        }
-
-        // TODO: Support array conversion result
-        if (conversionResult.length !== 1) {
-            return null;
-        }
-
-        const resultRule = conversionResult[0];
-
-        try {
-            if (RuleUtils.isCosmetic(resultRule)) {
-                return new CosmeticRule(resultRule, filterListId);
+            if (RuleUtils.isCosmetic(line)) {
+                return new CosmeticRule(line, filterListId);
             }
 
-            return new NetworkRule(resultRule, filterListId);
+            const hostRule = RuleUtils.createHostRule(line, filterListId);
+            if (hostRule) {
+                return hostRule;
+            }
+
+            return new NetworkRule(line, filterListId);
         } catch (e) {
-            // TODO: Log error
+            logger.error(e);
         }
 
         return null;
@@ -85,5 +71,21 @@ export class RuleUtils {
     public static isCosmetic(ruleText: string): boolean {
         const marker = findCosmeticRuleMarker(ruleText);
         return marker[0] !== -1;
+    }
+
+    /**
+     * Creates host rule from text
+     *
+     * @param ruleText
+     * @param filterListId
+     */
+    private static createHostRule(ruleText: string, filterListId: number): HostRule | null {
+        try {
+            return new HostRule(ruleText, filterListId);
+        } catch (e) {
+            // Ignore
+        }
+
+        return null;
     }
 }

@@ -11,6 +11,8 @@ describe('TestEngineMatchRequest', () => {
         const list = new StringRuleList(1, rules.join('\n'), false);
         const engine = new Engine(new RuleStorage([list]));
 
+        expect(engine.getRulesCount()).toBe(1);
+
         let request = new Request('https://example.org', '', RequestType.Document);
         let result = engine.matchRequest(request);
 
@@ -52,8 +54,8 @@ describe('TestEngineMatchRequest - advanced modifiers', () => {
         const cspRule = '||example.org^$csp=frame-src \'none\'';
         const replaceRule = '||example.org^$replace=/text-to-be-replaced/new-text/i';
         const cookieRule = '||example.org^$cookie';
-        // TODO: Add more modifiers
-        const rules = [cspRule, replaceRule, cookieRule];
+        const removeParamRule = '||example.org^$removeparam=p1|p2';
+        const rules = [cspRule, replaceRule, cookieRule, removeParamRule];
 
         const list = new StringRuleList(1, rules.join('\n'), false);
         const engine = new Engine(new RuleStorage([list]));
@@ -69,6 +71,8 @@ describe('TestEngineMatchRequest - advanced modifiers', () => {
         expect(result.cspRules && result.cspRules[0].getText()).toBe(cspRule);
         expect(result.cookieRules && result.cookieRules.length).toBe(1);
         expect(result.cookieRules && result.cookieRules[0].getText()).toBe(cookieRule);
+        expect(result.removeParamRules && result.removeParamRules.length).toBe(1);
+        expect(result.removeParamRules && result.removeParamRules[0].getText()).toBe(removeParamRule);
         expect(result.stealthRule).toBeNull();
     });
 });

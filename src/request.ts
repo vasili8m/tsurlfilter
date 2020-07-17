@@ -24,8 +24,10 @@ export enum RequestType {
     Font = 1 << 8,
     /** (a websocket connection) $websocket */
     Websocket = 1 << 9,
+    /** (navigator.sendBeacon()) $ping */
+    Ping = 1 << 10,
     /** any other request type */
-    Other = 1 << 10,
+    Other = 1 << 11,
 }
 
 /**
@@ -100,6 +102,12 @@ export class Request {
      * Source domain (eTLD+1). Can be empty.
      */
     public readonly sourceDomain: string | null;
+
+    /**
+     * the request is for a given Hostname, and not for a URL, and we don't really know what protocol it is.
+     * This can be true for DNS requests, or for HTTP CONNECT, or SNI matching.
+     */
+    public isHostnameRequest = false;
 
     /**
      * Creates an instance of a Request
