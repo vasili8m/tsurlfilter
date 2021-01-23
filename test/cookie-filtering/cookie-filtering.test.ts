@@ -2,8 +2,8 @@
 import { CookieFiltering } from '../../src/cookie-filtering/cookie-filtering';
 import { MockFilteringLog } from '../mock-filtering-log';
 import { NetworkRule, Request, RequestType } from '../../src';
-import { BrowserCookie } from '../../src/cookie-filtering/browser-cookie';
-import { CookieApi, OnChangedCause } from '../../src/cookie-filtering/cookie-api';
+import { BrowserCookie } from '../../src/cookie-filtering/browser-cookie/browser-cookie';
+import { CookieApi, OnChangedCause } from '../../src/cookie-filtering/browser-cookie/cookie-api';
 import { RulesFinder } from '../../src/cookie-filtering/rules-finder';
 
 const createTestRequest = (requestId: number): Request => {

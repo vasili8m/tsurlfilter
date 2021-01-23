@@ -1,5 +1,5 @@
 import { Cookie } from './cookie';
-import { BrowserCookie } from './browser-cookie';
+import { BrowserCookie } from './browser-cookie/browser-cookie';
 
 /**
  * Helper methods for parsing and extracting browser cookies from headers (both Set-Cookie and Cookie).

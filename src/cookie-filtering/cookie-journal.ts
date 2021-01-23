@@ -1,4 +1,4 @@
-import { BrowserCookie } from './browser-cookie';
+import { BrowserCookie } from './browser-cookie/browser-cookie';
 import { fastHash } from '../utils/utils';
 
 /**

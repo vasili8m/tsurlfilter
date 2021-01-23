@@ -1,5 +1,5 @@
 import { CookieJournal } from '../../src/cookie-filtering/cookie-journal';
-import { BrowserCookie } from '../../src/cookie-filtering/browser-cookie';
+import { BrowserCookie } from '../../src/cookie-filtering/browser-cookie/browser-cookie';
 
 describe('Cookie journal', () => {
     const journal = new CookieJournal();

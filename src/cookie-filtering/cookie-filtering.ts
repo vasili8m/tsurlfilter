@@ -3,8 +3,8 @@ import { FilteringLog } from '../filtering-log';
 import { NetworkRule, NetworkRuleOption } from '../rules/network-rule';
 import CookieUtils from './utils';
 import { CookieModifier } from '../modifiers/cookie-modifier';
-import { BrowserCookie } from './browser-cookie';
-import { CookieApi, OnChangedCause } from './cookie-api';
+import { BrowserCookie } from './browser-cookie/browser-cookie';
+import { CookieApi, OnChangedCause } from './browser-cookie/cookie-api';
 import { CookieJournal } from './cookie-journal';
 import { RulesFinder } from './rules-finder';
 
@@ -216,6 +216,8 @@ export class CookieFiltering implements ICookieFiltering {
 
         for (const cookie of cookies) {
             const isThirdParty = this.journal.isThirdParty(cookie);
+            // The cookie is also considered as third-party if it was not present in request headers,
+            // therefore it is not present in journal
             this.applyRulesToCookie(url, cookie, isThirdParty, cookieRules, tabId!);
 
             this.journal.setProcessed(cookie);

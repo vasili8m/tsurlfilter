@@ -1,5 +1,5 @@
 import CookieUtils from '../../src/cookie-filtering/utils';
-import { BrowserCookie } from '../../src/cookie-filtering/browser-cookie';
+import { BrowserCookie } from '../../src/cookie-filtering/browser-cookie/browser-cookie';
 
 describe('Cookie utils - Set-Cookie parsing', () => {
     it('checks parse simple', () => {

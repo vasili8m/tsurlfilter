@@ -18,7 +18,7 @@ export * from './rules/rule-converter';
 export * from './rules/rule-factory';
 export * from './rules/simple-regex';
 export * from './cookie-filtering/cookie-filtering';
-export * from './cookie-filtering/cookie-api';
+export * from './cookie-filtering/browser-cookie/cookie-api';
 export * from './stealth/stealth-service';
 export * from './utils/logger';
 export * from './utils/rule-validator';

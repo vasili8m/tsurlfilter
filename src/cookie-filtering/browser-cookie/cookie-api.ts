@@ -20,7 +20,6 @@ export enum OnChangedCause {
 /**
  * Cookie manager interface
  * Should be implemented with browser cookie api or smth similar
- * Used in CookieFiltering module
  */
 export interface CookieApi {
     /**
