@@ -53,6 +53,13 @@ export default class CookieController {
                 return;
             }
 
+            // TODO: Detect if this cookie is third-party
+            // The cookie is considered third-party if
+            // - it has been set in third-party iframe
+            // eslint-disable-next-line max-len
+            // - https://stackoverflow.com/questions/14344319/can-i-be-notified-of-cookie-changes-in-client-side-javascript
+            // TODO: use Method 1: Periodic Polling
+
             const cookieName = cookieStr.slice(0, pos).trim();
             rules.forEach((rule) => {
                 this.applyRule(rule.match, cookieName, rule.ruleText);

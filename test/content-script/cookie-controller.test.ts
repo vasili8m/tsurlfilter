@@ -5,7 +5,7 @@
 import CookieController from '../../src/content-script/cookie-controller';
 import { NetworkRule } from '../../src';
 
-describe('CssHitsCounter', () => {
+describe('Cookie Controller Tests', () => {
     it('checks apply simple rule', () => {
         const rules = [
             new NetworkRule('||example.org^$cookie=user_one', 1),
@@ -65,4 +65,6 @@ describe('CssHitsCounter', () => {
 
         expect(callback).toHaveBeenLastCalledWith('||example.org^$cookie=/user/');
     });
+
+    // TODO: Add third-party cookie tests
 });
