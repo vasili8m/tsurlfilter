@@ -1,6 +1,9 @@
 /* eslint-disable max-len */
 import {
-    Request, RequestType, NetworkRuleOption, NetworkRule,
+    NetworkRule,
+    NetworkRuleOption,
+    Request,
+    RequestType,
 } from '../../src';
 
 describe('NetworkRule.parseRuleText', () => {
@@ -75,7 +78,7 @@ describe('NetworkRule.parseRuleText', () => {
     it('works when it handles incorrect rules properly', () => {
         expect(() => {
             NetworkRule.parseRuleText('@@');
-        }).toThrowError(/The rule is too short:.+/);
+        }).toThrow(new SyntaxError('Rule is too short'));
     });
 });
 
@@ -92,52 +95,79 @@ describe('NetworkRule constructor', () => {
         expect(rule.isGeneric()).toEqual(true);
     });
 
-    it('works when it handles unknown modifiers properly', () => {
+    it('handles unknown modifiers properly', () => {
+        const unknownModifier = 'unknown';
         expect(() => {
-            new NetworkRule('||example.org^$unknown', 0);
-        }).toThrowError(/Unknown modifier:.+/);
+            new NetworkRule(`||example.org^$${unknownModifier}`, 0);
+        }).toThrow(new SyntaxError(`Unknown modifier: ${unknownModifier}`));
     });
 
-    it('works when it handles whitelist-only modifiers properly', () => {
+    it('throws error if whitelist-only modifier used in blacklist rule - $generichide', () => {
+        expect(() => {
+            new NetworkRule('||example.org^$generichide', 0);
+        }).toThrow('cannot be used in blacklist rule');
+    });
+
+    it('throws error if whitelist-only modifier used in blacklist rule - $elemhide', () => {
         expect(() => {
             new NetworkRule('||example.org^$elemhide', 0);
-        }).toThrowError(/.* cannot be used in a blacklist rule/);
+        }).toThrowError('cannot be used in blacklist rule');
     });
 
-    it('works when it handles blacklist-only modifiers properly', () => {
+    it('throws error if blacklist-only modifiers used in whitelist rule - $empty', () => {
         expect(() => {
-            new NetworkRule('@@||example.org^$popup', 0);
-        }).toThrowError(/.* cannot be used in a whitelist rule/);
+            new NetworkRule('@@||example.org^$empty', 0);
+        }).toThrowError('cannot be used in whitelist rule');
     });
 
     it('works when it handles empty $domain modifier', () => {
         expect(() => {
             new NetworkRule('||example.org^$domain=', 0);
-        }).toThrowError(/domains cannot be empty/);
+        }).toThrow(new Error('Modifier $domain cannot be empty'));
     });
 
     it('works when it handles empty domain inside a $domain modifier', () => {
         expect(() => {
             new NetworkRule('||example.org^$domain=example.com|', 0);
-        }).toThrowError(/empty domain specified.*/);
+        }).toThrow('Empty domain specified in');
+    });
+
+    it('throws error if host rule is provided', () => {
+        expect(() => {
+            const hostRule = '209.237.226.90  www.opensource.org';
+            new NetworkRule(hostRule, 0);
+        }).toThrow(new SyntaxError('Rule has spaces, seems to be an host rule'));
     });
 
     it('works when it handles too wide rules properly', () => {
         expect(() => {
             new NetworkRule('*$third-party', 0);
-        }).toThrowError(/The rule is too wide,.*/);
-    });
+        }).toThrow(new SyntaxError('The rule is too wide, add domain restriction or make the pattern more specific'));
 
-    it('works when it handles too wide rules properly', () => {
         expect(() => {
             new NetworkRule('$third-party', 0);
-        }).toThrowError(/The rule is too wide,.*/);
-    });
+        }).toThrow(new SyntaxError('The rule is too wide, add domain restriction or make the pattern more specific'));
 
-    it('works when it handles too wide rules properly', () => {
         expect(() => {
             new NetworkRule('ad$third-party', 0);
-        }).toThrowError(/The rule is too wide,.*/);
+        }).toThrow(new SyntaxError('The rule is too wide, add domain restriction or make the pattern more specific'));
+    });
+
+    it('doesnt consider rules with app modifier too wide', () => {
+        const rule = new NetworkRule('@@*$app=com.cinemark.mobile', 0);
+        expect(rule).toBeTruthy();
+    });
+
+    it('handles restricted apps', () => {
+        const rule = new NetworkRule('||baddomain.com^$app=org.good.app|~org.bad.app', 0);
+        expect(rule.getRestrictedApps()).toContain('org.bad.app');
+        expect(rule.getPermittedApps()).toContain('org.good.app');
+    });
+
+    it('throws error if app modifier is empty', () => {
+        expect(() => {
+            new NetworkRule('||baddomain.com^$app', 0);
+        }).toThrow(new SyntaxError('$app modifier cannot be empty'));
     });
 
     it('works when it handles wide rules with $domain properly', () => {
@@ -146,9 +176,9 @@ describe('NetworkRule constructor', () => {
         expect(rule.getText()).toEqual('$domain=ya.ru');
     });
 
-    function checkModifier(name: string, option: NetworkRuleOption, enabled: boolean): void {
+    function checkModifier(name: string, option: NetworkRuleOption, enabled: boolean, whitelist = false): void {
         let ruleText = `||example.org^$${name}`;
-        if ((option & NetworkRuleOption.WhitelistOnly) === option) {
+        if (whitelist || (option & NetworkRuleOption.WhitelistOnly) === option) {
             ruleText = `@@${ruleText}`;
         }
 
@@ -183,12 +213,23 @@ describe('NetworkRule constructor', () => {
         checkModifier('document', NetworkRuleOption.Urlblock, true);
         checkModifier('document', NetworkRuleOption.Content, true);
 
+        checkModifier('document', NetworkRuleOption.Elemhide, true, true);
+        checkModifier('document', NetworkRuleOption.Jsinject, true, true);
+        checkModifier('document', NetworkRuleOption.Urlblock, true, true);
+        checkModifier('document', NetworkRuleOption.Content, true, true);
+
         checkModifier('stealth', NetworkRuleOption.Stealth, true);
         checkModifier('badfilter', NetworkRuleOption.Badfilter, true);
 
         checkModifier('popup', NetworkRuleOption.Popup, true);
+        checkModifier('popup', NetworkRuleOption.Popup, true, true);
         checkModifier('empty', NetworkRuleOption.Empty, true);
         checkModifier('mp4', NetworkRuleOption.Mp4, true);
+
+        checkModifier('extension', NetworkRuleOption.Extension, true);
+        checkModifier('~extension', NetworkRuleOption.Extension, false);
+
+        checkModifier('network', NetworkRuleOption.Network, true);
     });
 
     function checkRequestType(name: string, requestType: RequestType, permitted: boolean): void {
@@ -215,9 +256,6 @@ describe('NetworkRule constructor', () => {
         checkRequestType('object', RequestType.Object, true);
         checkRequestType('~object', RequestType.Object, false);
 
-        checkRequestType('object', RequestType.Object, true);
-        checkRequestType('~object', RequestType.Object, false);
-
         checkRequestType('image', RequestType.Image, true);
         checkRequestType('~image', RequestType.Image, false);
 
@@ -238,6 +276,9 @@ describe('NetworkRule constructor', () => {
 
         checkRequestType('ping', RequestType.Ping, true);
         checkRequestType('~ping', RequestType.Ping, false);
+
+        checkRequestType('webrtc', RequestType.Webrtc, true);
+        checkRequestType('~webrtc', RequestType.Webrtc, false);
     });
 
     function assertBadfilterNegates(rule: string, badfilter: string, expected: boolean): void {
@@ -363,6 +404,11 @@ describe('NetworkRule.match', () => {
 
         request = new Request('https://example.org/', 'https://subdomain.example.org/', RequestType.Script);
         expect(rule.match(request)).toEqual(false);
+    });
+
+    it('works when $domain modifier is applied properly - hostname', () => {
+        let rule: NetworkRule;
+        let request: Request;
 
         // Wide rule
         rule = new NetworkRule('$domain=example.org', 0);
@@ -383,6 +429,16 @@ describe('NetworkRule.match', () => {
         rule = new NetworkRule('$domain=example.org', 0);
         request = new Request('https://example.org/', 'https://example.com/', RequestType.Image);
         expect(rule.match(request)).toEqual(false);
+
+        // Not matching domain specific patterns
+        rule = new NetworkRule('||example.org/path$domain=example.org', 0);
+        request = new Request('https://example.org/path', 'https://example.com/', RequestType.Document);
+        expect(rule.match(request)).toEqual(false);
+
+        // Match any domain pattern
+        rule = new NetworkRule('path$domain=example.org', 0);
+        request = new Request('https://example.org/path', 'https://example.com/', RequestType.Document);
+        expect(rule.match(request)).toEqual(true);
     });
 
     it('works when $domain modifier is applied properly - wildcards', () => {
@@ -407,7 +463,6 @@ describe('NetworkRule.match', () => {
 
         request = new Request('https://test.ru/', 'https://google.co.uk/', RequestType.Document);
         expect(rule.match(request)).toBeTruthy();
-
 
         // non-existent tld
         request = new Request('https://test.ru/', 'https://google.uk.eu/', RequestType.Document);

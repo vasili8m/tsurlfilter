@@ -2,6 +2,7 @@
 import * as TSUrlFilter from './engine.js';
 import { applyCss, applyScripts } from './cosmetic.js';
 import { FilteringLog } from './filtering-log/filtering-log.js';
+import { ModificationsListener } from './filtering-log/content-modifications.js';
 import { RedirectsService } from './redirects/redirects-service.js';
 import { CookieApi } from './cookie/cookie-api.js';
 import { applyCookieRules } from './cookie/cookie-helper.js';
@@ -69,6 +70,7 @@ export class Application {
             // eslint-disable-next-line no-undef
             version: chrome.runtime.getManifest().version,
             verbose: true,
+            compatibility: TSUrlFilter.CompatibilityTypes.extension,
         };
 
         const stealthConfig = {
@@ -80,9 +82,10 @@ export class Application {
             selfDestructFirstPartyCookiesTime: 1,
         };
 
-        this.engine = new TSUrlFilter.Engine(ruleStorage, config);
+        TSUrlFilter.setConfiguration(config);
+        this.engine = new TSUrlFilter.Engine(ruleStorage);
         this.dnsEngine = new TSUrlFilter.DnsEngine(ruleStorage);
-        this.contentFiltering = new TSUrlFilter.ContentFiltering(this.filteringLog);
+        this.contentFiltering = new TSUrlFilter.ContentFiltering(new ModificationsListener(this.filteringLog));
         this.stealthService = new TSUrlFilter.StealthService(stealthConfig);
         this.cookieFiltering = new TSUrlFilter.CookieFiltering(new CookieApi(this.browser), this.filteringLog, {
             getRulesForCookie: (url, thirdParty) => {

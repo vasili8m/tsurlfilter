@@ -5,6 +5,7 @@ import { fastHash } from '../utils/utils';
 import { NetworkEngine } from './network-engine';
 import { Request, RequestType } from '../request';
 import { DnsResult } from './dns-result';
+import { ScannerType } from '../filterlist/scanner/scanner-type';
 
 /**
  * DNSEngine combines host rules and network rules and is supposed to quickly find
@@ -26,7 +27,7 @@ export class DnsEngine {
     /**
      * Lookup table. Key is the hostname hash.
      */
-    private readonly lookupTable: Map<number, bigint[]>;
+    private readonly lookupTable: Map<number, string[]>;
 
     /**
      * Network engine instance
@@ -41,11 +42,11 @@ export class DnsEngine {
     constructor(storage: RuleStorage) {
         this.ruleStorage = storage;
         this.rulesCount = 0;
-        this.lookupTable = new Map<number, bigint[]>();
+        this.lookupTable = new Map<number, string[]>();
 
         this.networkEngine = new NetworkEngine(storage, true);
 
-        const scanner = this.ruleStorage.createRuleStorageScanner();
+        const scanner = this.ruleStorage.createRuleStorageScanner(ScannerType.HostRules);
 
         while (scanner.scan()) {
             const indexedRule = scanner.getRule();
@@ -103,7 +104,7 @@ export class DnsEngine {
      * @param rule
      * @param storageIdx
      */
-    private addRule(rule: HostRule, storageIdx: bigint): void {
+    private addRule(rule: HostRule, storageIdx: string): void {
         rule.getHostnames().forEach((hostname) => {
             const hash = fastHash(hostname);
 

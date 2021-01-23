@@ -70,6 +70,11 @@ export class SimpleRegex {
      */
     public static readonly MASK_REGEX_RULE: string = '/';
 
+    /**
+     * If string starts with exclamation mark "!" we consider it as comment
+     */
+    public static readonly MASK_COMMENT = '!';
+
     /** Regex with basic matching pattern special characters */
     private static readonly rePatternSpecialCharacters: RegExp = new RegExp('[*^|]');
 
@@ -101,8 +106,7 @@ export class SimpleRegex {
         let longest = '';
 
         const parts = pattern.split(this.rePatternSpecialCharacters);
-        for (let i = 0; i < parts.length; i += 1) {
-            const part = parts[i];
+        for (const part of parts) {
             if (part.length > longest.length) {
                 longest = part;
             }

@@ -5,11 +5,37 @@
 import { TextDecoder, TextEncoder } from 'text-encoding';
 import { MockStreamFilter } from './mock-stream-filter';
 import {
-    ContentFiltering, NetworkRule, Request, RequestType,
+    ContentFiltering, IRule, NetworkRule, Request, RequestType,
 } from '../../src';
 import { CosmeticRule } from '../../src/rules/cosmetic-rule';
 import { DEFAULT_CHARSET, parseCharsetFromHeader, WIN_1251 } from '../../src/content-filtering/charsets';
-import { MockFilteringLog } from '../mock-filtering-log';
+import { ModificationsListener } from '../../src/content-filtering/modifications-listener';
+
+class MockFilteringLog implements ModificationsListener {
+    onHtmlRuleApplied = jest.fn(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        (tabId: number, requestId: number, innerHTML: string, frameUrl: string | null, rule: IRule) => {
+            // Do nothing
+        },
+    );
+
+    onReplaceRulesApplied = jest.fn(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        (tabId: number, requestId: number, frameUrl: string | null, appliedRules: IRule[]) => {
+            // Do nothing
+        },
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    onModificationFinished = jest.fn((requestId: number) => {
+        // Do nothing
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    onModificationStarted = jest.fn((requestId: number) => {
+        // Do nothing
+    });
+}
 
 const createTestRequest = (requestType?: RequestType): Request => {
     const type = requestType ? requestType! : RequestType.Document;

@@ -4,6 +4,7 @@ import { CosmeticRule, CosmeticRuleType } from '../../rules/cosmetic-rule';
 import { CosmeticResult } from './cosmetic-result';
 import { CosmeticContentResult } from './cosmetic-content-result';
 import { CosmeticOption } from '../cosmetic-option';
+import { ScannerType } from '../../filterlist/scanner/scanner-type';
 
 /**
  * CosmeticEngine combines all the cosmetic rules and allows to quickly
@@ -45,8 +46,9 @@ export class CosmeticEngine {
      * Builds instance of cosmetic engine
      *
      * @param ruleStorage
+     * @param skipStorageScan create an instance without storage scanning
      */
-    constructor(ruleStorage: RuleStorage) {
+    constructor(ruleStorage: RuleStorage, skipStorageScan = false) {
         this.ruleStorage = ruleStorage;
         this.rulesCount = 0;
 
@@ -55,7 +57,11 @@ export class CosmeticEngine {
         this.jsLookupTable = new CosmeticLookupTable();
         this.htmlLookupTable = new CosmeticLookupTable();
 
-        const scanner = this.ruleStorage.createRuleStorageScanner();
+        if (skipStorageScan) {
+            return;
+        }
+
+        const scanner = this.ruleStorage.createRuleStorageScanner(ScannerType.CosmeticRules);
 
         while (scanner.scan()) {
             const indexedRule = scanner.getRule();
@@ -70,7 +76,7 @@ export class CosmeticEngine {
      * Adds rules into appropriate tables
      * @param rule
      */
-    private addRule(rule: CosmeticRule): void {
+    public addRule(rule: CosmeticRule): void {
         switch (rule.getType()) {
             case CosmeticRuleType.ElementHiding: {
                 this.elementHidingLookupTable.addRule(rule);
@@ -128,9 +134,7 @@ export class CosmeticEngine {
         }
 
         if (includeJs) {
-            if (includeGeneric) {
-                CosmeticEngine.appendGenericRules(cosmeticResult.JS, this.jsLookupTable, hostname);
-            }
+            CosmeticEngine.appendGenericRules(cosmeticResult.JS, this.jsLookupTable, hostname);
             CosmeticEngine.appendSpecificRules(cosmeticResult.JS, this.jsLookupTable, hostname);
         }
 
@@ -162,7 +166,6 @@ export class CosmeticEngine {
             }
         }
     }
-
 
     /**
      * Selects specific rules and appends rules content to cosmetic result

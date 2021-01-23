@@ -4,6 +4,7 @@ import { MatchingResult } from './matching-result';
 import { fastHash, fastHashBetween } from '../utils/utils';
 import { RuleStorage } from '../filterlist/rule-storage';
 import { DomainModifier } from '../modifiers/domain-modifier';
+import { ScannerType } from '../filterlist/scanner/scanner-type';
 
 /**
  * NetworkEngine is the engine that supports quick search over network rules
@@ -34,12 +35,12 @@ export class NetworkEngine {
     /**
      * Domain lookup table. Key is the domain name hash.
      */
-    private readonly domainsLookupTable: Map<number, bigint[]>;
+    private readonly domainsLookupTable: Map<number, string[]>;
 
     /**
      * Shortcuts lookup table. Key is the shortcut hash.
      */
-    private readonly shortcutsLookupTable: Map<number, bigint[]>;
+    private readonly shortcutsLookupTable: Map<number, string[]>;
 
     /**
      * Shortcuts histogram helps us choose the best shortcut for the shortcuts lookup table.
@@ -60,8 +61,8 @@ export class NetworkEngine {
     constructor(storage: RuleStorage, skipStorageScan = false) {
         this.ruleStorage = storage;
         this.rulesCount = 0;
-        this.domainsLookupTable = new Map<number, bigint[]>();
-        this.shortcutsLookupTable = new Map<number, bigint[]>();
+        this.domainsLookupTable = new Map<number, string[]>();
+        this.shortcutsLookupTable = new Map<number, string[]>();
         this.shortcutsHistogram = new Map<number, number>();
         this.otherRules = [];
 
@@ -69,7 +70,7 @@ export class NetworkEngine {
             return;
         }
 
-        const scanner = this.ruleStorage.createRuleStorageScanner();
+        const scanner = this.ruleStorage.createRuleStorageScanner(ScannerType.NetworkRules);
 
         while (scanner.scan()) {
             const indexedRule = scanner.getRule();
@@ -126,7 +127,7 @@ export class NetworkEngine {
      * @param rule
      * @param storageIdx
      */
-    public addRule(rule: NetworkRule, storageIdx: bigint): void {
+    public addRule(rule: NetworkRule, storageIdx: string): void {
         if (!this.addRuleToShortcutsTable(rule, storageIdx)) {
             if (!this.addRuleToDomainsTable(rule, storageIdx)) {
                 if (!this.otherRules.includes(rule)) {
@@ -182,6 +183,10 @@ export class NetworkEngine {
         }
 
         const domains = NetworkEngine.getSubdomains(request.sourceHostname);
+        if (request.hostname !== request.sourceHostname) {
+            domains.push(...NetworkEngine.getSubdomains(request.hostname));
+        }
+
         domains.forEach((domain) => {
             const hash = fastHash(domain);
             const rulesIndexes = this.domainsLookupTable.get(hash);
@@ -206,7 +211,7 @@ export class NetworkEngine {
      * @param storageIdx index
      * @return {boolean} true if the rule been added
      */
-    private addRuleToShortcutsTable(rule: NetworkRule, storageIdx: bigint): boolean {
+    private addRuleToShortcutsTable(rule: NetworkRule, storageIdx: string): boolean {
         const shortcuts = NetworkEngine.getRuleShortcuts(rule);
         if (!shortcuts || shortcuts.length === 0) {
             return false;
@@ -304,7 +309,7 @@ export class NetworkEngine {
      * @param storageIdx index
      * @return {boolean} true if the rule been added
      */
-    private addRuleToDomainsTable(rule: NetworkRule, storageIdx: bigint): boolean {
+    private addRuleToDomainsTable(rule: NetworkRule, storageIdx: string): boolean {
         const permittedDomains = rule.getPermittedDomains();
         if (!permittedDomains || permittedDomains.length === 0) {
             return false;

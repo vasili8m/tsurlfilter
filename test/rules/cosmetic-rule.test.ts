@@ -37,15 +37,15 @@ describe('Element hiding rules constructor', () => {
     it('works if it verifies rules properly', () => {
         expect(() => {
             new CosmeticRule('||example.org^', 0);
-        }).toThrowError(/This is not a cosmetic rule/);
+        }).toThrow(new SyntaxError('Not a cosmetic rule'));
 
         expect(() => {
             new CosmeticRule('example.org## ', 0);
-        }).toThrowError(/Empty rule content/);
+        }).toThrow(new SyntaxError('Rule content is empty'));
 
         expect(() => {
             new CosmeticRule('example.org##body { background: red!important; }', 0);
-        }).toThrowError(/Invalid cosmetic rule+/);
+        }).toThrow(new SyntaxError('Invalid cosmetic rule, wrong brackets'));
     });
 
     it('checks elemhide rules validation', () => {
@@ -81,7 +81,7 @@ describe('Element hiding rules constructor', () => {
     it('throws error if marker is not supported yet', () => {
         expect(() => {
             new CosmeticRule('example.org$@@$script[data-src="banner"]', 0);
-        }).toThrow(new SyntaxError('This is not a cosmetic rule'));
+        }).toThrow(new SyntaxError('Not a cosmetic rule'));
     });
 });
 
@@ -221,9 +221,8 @@ describe('CosmeticRule.CSS', () => {
 
     it('throws error on invalid pseudo class', () => {
         const selector = 'test:matches(.foo)';
-        const ruleText = `example.org##${selector}`;
         expect(() => {
-            new CosmeticRule(ruleText, 0);
+            new CosmeticRule(`example.org##${selector}`, 0);
         }).toThrow(new SyntaxError(`Unknown pseudo class: ${selector}`));
     });
 
@@ -252,26 +251,30 @@ describe('CosmeticRule.CSS', () => {
     });
 
     it('throws error when cosmetic rule does not contain css style', () => {
-        let cssRule = 'example.org#$#div';
         expect(() => {
-            new CosmeticRule(cssRule, 0);
-        }).toThrow(new SyntaxError(`Invalid CSS modifying rule, no style presented: ${cssRule}`));
+            new CosmeticRule('example.org#$#div', 0);
+        }).toThrow(new SyntaxError('Invalid CSS modifying rule, no style presented'));
 
-        cssRule = 'example.org#$?#div';
         expect(() => {
-            new CosmeticRule(cssRule, 0);
-        }).toThrow(new SyntaxError(`Invalid CSS modifying rule, no style presented: ${cssRule}`));
+            new CosmeticRule('example.org#$?#div', 0);
+        }).toThrow(new SyntaxError('Invalid CSS modifying rule, no style presented'));
     });
 
     it('throws error when cosmetic rule contains url', () => {
         const checkRuleIsInvalid = (ruleText: string): void => {
             expect(() => {
                 new CosmeticRule(ruleText, 0);
-            }).toThrow(/CSS modifying rule with 'url' was omitted+/);
+            }).toThrow(new SyntaxError('CSS modifying rule with \'url\' was omitted'));
         };
 
         checkRuleIsInvalid('example.com#$#body { background: url(http://example.org/empty.gif) }');
         checkRuleIsInvalid('example.org#$#body { background:url("http://example.org/image.png"); }');
+    });
+
+    it('doesnt throw error if cosmetic rule contains url in selector', () => {
+        const validRule = 'example.com#$#body[style*="background-image: url()"] { margin-top: 45px !important; }';
+        const rule = new CosmeticRule(validRule, 0);
+        expect(rule).toBeTruthy();
     });
 
     it('checks backslash in cosmetic rules content', () => {
@@ -281,10 +284,13 @@ describe('CosmeticRule.CSS', () => {
         const backslashInCssRulesSelector = new CosmeticRule('example.org#$?#div:matches-css(width: /\\d+/) { background-color: red!important; }', 0);
         expect(backslashInCssRulesSelector).toBeDefined();
 
+        const backslashInCssRulesSelector2 = new CosmeticRule('example.org#$?##p:has-text(/[\\w\\W]{337}/):has-text(/Dołącz \\./) { font-size: 0 !important; }', 0);
+        expect(backslashInCssRulesSelector2).toBeDefined();
+
         const checkRuleIsInvalid = (ruleText: string): void => {
             expect(() => {
                 new CosmeticRule(ruleText, 0);
-            }).toThrow(/CSS injection rule with '\\' was omitted+/);
+            }).toThrow(new SyntaxError("CSS injection rule with '\\' was omitted"));
         };
 
         checkRuleIsInvalid('example.com#$#body { background: \\75 rl(http://example.org/empty.gif) }');
@@ -323,6 +329,13 @@ describe('Extended css rule', () => {
 
     expect(rule.isExtendedCss()).toBeTruthy();
     expect(rule.getContent()).toEqual('div { background-color: #333!important; }');
+
+    it('does not confuses extended css rules with script rules', () => {
+        // eslint-disable-next-line max-len
+        ruleText = '#%#var AG_defineProperty=function(){return a={get:function(){var a=i.f;a&&a.beforeGet&&a.beforeGet.call(this,i.a.b);e:if(a=i.g)a=A(a)?a.value:a.get?a.get.call(this):void 0;else{if(a=i.a.b,i.i in a&&null!==(a=B(a))){var t=C.call(a,i.i);a=t?t.call(this):a[i.i];break e}a=void 0}return(this===i.a.b||D.call(i.a.b,this))&&E(e,a,i.c),a}},d&&J(d,a,K),a;var e,i,a}();';
+        rule = new CosmeticRule(ruleText, 0);
+        expect(rule.isExtendedCss()).toBeFalsy();
+    });
 });
 
 describe('Javascript rules', () => {

@@ -15,9 +15,8 @@ const contentScriptConfig = {
     output: [
         {
             file: `dist/${contentScriptFilename}.js`,
-            name: libraryName,
-            format: 'iife',
-            sourcemap: true,
+            format: 'esm',
+            sourcemap: false,
         },
     ],
     watch: {
@@ -37,9 +36,22 @@ export default [
         input: 'src/index.ts',
         output: [
             {
-                file: pkg.main, name: camelCase(libraryName), format: 'umd', sourcemap: true,
+                file: pkg.main,
+                name: camelCase(libraryName),
+                format: 'umd',
+                sourcemap: false,
             },
-            { file: pkg.module, format: 'es', sourcemap: true },
+            {
+                file: pkg.module,
+                format: 'esm',
+                sourcemap: false,
+            },
+            {
+                file: pkg.iife,
+                name: libraryName,
+                format: 'iife',
+                sourcemap: false,
+            },
         ],
         // Indicate here external modules you don't wanna include in your bundle (i.e.: 'lodash')
         external: [],
@@ -49,11 +61,14 @@ export default [
         plugins: [
             // Allow json resolution
             json(),
+
             // Compile TypeScript files
             typescript(),
+
             // Allow bundling cjs modules (unlike webpack, rollup doesn't understand cjs)
             commonjs(),
             globals(),
+
             // Allow node_modules resolution, so you can use 'external' to control
             // which external modules to include in the bundle
             // https://github.com/rollup/rollup-plugin-node-resolve#usage

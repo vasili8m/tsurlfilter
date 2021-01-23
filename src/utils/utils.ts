@@ -13,9 +13,23 @@ export function splitByDelimiterWithEscapeCharacter(
     escapeCharacter: string,
     preserveAllTokens: boolean,
 ): string[] {
-    const parts: string[] = [];
+    let parts: string[] = [];
 
     if (!str) {
+        return parts;
+    }
+
+    if (str.startsWith(delimiter)) {
+        // eslint-disable-next-line no-param-reassign
+        str = str.substring(1);
+    }
+
+    if (!str.includes(escapeCharacter)) {
+        parts = str.split(delimiter);
+        if (!preserveAllTokens) {
+            parts = parts.filter((x) => !!x);
+        }
+
         return parts;
     }
 
@@ -23,9 +37,7 @@ export function splitByDelimiterWithEscapeCharacter(
     for (let i = 0; i < str.length; i += 1) {
         const c = str.charAt(i);
         if (c === delimiter) {
-            if (i === 0) {
-                // Ignore
-            } else if (str.charAt(i - 1) === escapeCharacter) {
+            if (i > 0 && str.charAt(i - 1) === escapeCharacter) {
                 sb.splice(sb.length - 1, 1);
                 sb.push(c);
             } else if (preserveAllTokens || sb.length > 0) {
@@ -75,6 +87,15 @@ export function startsAtIndexWith(str: string, startIndex: number, substr: strin
  */
 export function hasUnquotedSubstring(str: string, substr: string): boolean {
     const quotes = ['"', "'", '/'];
+
+    if (!str.includes(substr)) {
+        return false;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    if (indexOfAny(str, quotes) === -1) {
+        return true;
+    }
 
     const stack: string[] = [];
     for (let i = 0; i < str.length; i += 1) {

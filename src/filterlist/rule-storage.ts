@@ -4,6 +4,8 @@ import { IRule } from '../rules/rule';
 import { RuleScanner } from './scanner/rule-scanner';
 import { NetworkRule } from '../rules/network-rule';
 import { HostRule } from '../rules/host-rule';
+import { ScannerType } from './scanner/scanner-type';
+import { RuleFactory } from '../rules/rule-factory';
 
 /**
  * RuleStorage is an abstraction that combines several rule lists
@@ -33,7 +35,7 @@ export class RuleStorage {
     /**
      * cache with the rules which were retrieved.
      */
-    private readonly cache: Map<bigint, IRule>;
+    private readonly cache: Map<string, IRule>;
 
     /**
      * Constructor
@@ -45,7 +47,7 @@ export class RuleStorage {
     constructor(lists: IRuleList[]) {
         this.lists = lists;
         this.listsMap = new Map<number, IRuleList>();
-        this.cache = new Map<bigint, IRule>();
+        this.cache = new Map<string, IRule>();
 
         this.lists.forEach((list) => {
             const filterListId = list.getId();
@@ -63,8 +65,8 @@ export class RuleStorage {
      *
      * @return scanner instance
      */
-    createRuleStorageScanner(): RuleStorageScanner {
-        const scanners: RuleScanner[] = this.lists.map((list) => list.newScanner());
+    createRuleStorageScanner(scannerType: ScannerType): RuleStorageScanner {
+        const scanners: RuleScanner[] = this.lists.map((list) => list.newScanner(scannerType));
         return new RuleStorageScanner(scanners);
     }
 
@@ -72,8 +74,9 @@ export class RuleStorage {
      * Looks for the filtering rule in this storage
      *
      * @param storageIdx the lookup index that you can get from the rule storage scanner
+     * @param ignoreHost rules could be retrieved as host rules
      */
-    retrieveRule(storageIdx: bigint): IRule | null {
+    retrieveRule(storageIdx: string, ignoreHost = true): IRule | null {
         const rule = this.cache.get(storageIdx);
         if (rule) {
             return rule;
@@ -87,7 +90,12 @@ export class RuleStorage {
             return null;
         }
 
-        const result = list.retrieveRule(ruleIdx);
+        const ruleText = list.retrieveRuleText(ruleIdx);
+        if (!ruleText) {
+            return null;
+        }
+
+        const result = RuleFactory.createRule(ruleText!, listId, false, false, ignoreHost);
         if (result) {
             this.cache.set(storageIdx, result);
         }
@@ -101,7 +109,7 @@ export class RuleStorage {
      * @param storageIdx
      * @return the rule or nil in any other case (not found or error)
      */
-    retrieveNetworkRule(storageIdx: bigint): NetworkRule | null {
+    retrieveNetworkRule(storageIdx: string): NetworkRule | null {
         const rule = this.retrieveRule(storageIdx);
         if (!rule) {
             return null;
@@ -120,8 +128,8 @@ export class RuleStorage {
      * @param storageIdx
      * @return the rule or nil in any other case (not found or error)
      */
-    retrieveHostRule(storageIdx: bigint): HostRule | null {
-        const rule = this.retrieveRule(storageIdx);
+    retrieveHostRule(storageIdx: string): HostRule | null {
+        const rule = this.retrieveRule(storageIdx, false);
         if (!rule) {
             return null;
         }

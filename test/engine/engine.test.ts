@@ -2,7 +2,7 @@ import { Engine } from '../../src/engine/engine';
 import { Request, RequestType } from '../../src';
 import { StringRuleList } from '../../src/filterlist/rule-list';
 import { RuleStorage } from '../../src/filterlist/rule-storage';
-import { config } from '../../src/configuration';
+import { config, setConfiguration } from '../../src/configuration';
 import { CosmeticOption } from '../../src/engine/cosmetic-option';
 
 describe('TestEngineMatchRequest', () => {
@@ -35,14 +35,42 @@ describe('TestEngineMatchRequest', () => {
     });
 });
 
+describe('TestEngine - postponed load rules', () => {
+    const rules = ['||example.org^$third-party', 'example.org##banner'];
+    const list = new StringRuleList(1, rules.join('\n'), false);
+    const ruleStorage = new RuleStorage([list]);
+
+    it('works rules are loaded', () => {
+        const engine = new Engine(ruleStorage, true);
+
+        expect(engine.getRulesCount()).toBe(0);
+
+        engine.loadRules();
+
+        expect(engine.getRulesCount()).toBe(2);
+    });
+
+    it('works rules are loaded async', async () => {
+        const engine = new Engine(ruleStorage, true);
+
+        expect(engine.getRulesCount()).toBe(0);
+
+        await engine.loadRulesAsync(1);
+
+        expect(engine.getRulesCount()).toBe(2);
+    });
+});
+
 describe('TestEngine - configuration', () => {
     const rules = ['||example.org^$third-party'];
     const list = new StringRuleList(1, rules.join('\n'), false);
-    new Engine(new RuleStorage([list]), {
+    setConfiguration({
         engine: 'test-engine',
         version: 'test-version',
         verbose: true,
     });
+
+    new Engine(new RuleStorage([list]));
 
     expect(config.engine).toBe('test-engine');
     expect(config.version).toBe('test-version');
@@ -193,7 +221,6 @@ describe('TestEngineCosmeticResult - js', () => {
     const genericJsRule = `#%#${jsRuleText}`;
 
     const rules = [
-        jsRuleText,
         specificJsRule,
         genericJsRule,
     ];
@@ -214,7 +241,7 @@ describe('TestEngineCosmeticResult - js', () => {
 
         result = engine.getCosmeticResult('example.org', CosmeticOption.CosmeticOptionJS);
 
-        expect(result.JS.generic.length).toEqual(0);
+        expect(result.JS.generic.length).toEqual(1);
         expect(result.JS.specific.length).toEqual(1);
     });
 
@@ -236,5 +263,18 @@ describe('TestEngineCosmeticResult - js', () => {
 
         expect(result.JS.generic.length).toEqual(0);
         expect(result.JS.specific.length).toEqual(0);
+    });
+});
+
+describe('$urlblock modifier', () => {
+    it('should have higher priority than important', () => {
+        const important = '||example.com$important';
+        const urlblock = '@@||example.org$urlblock';
+        const list = new StringRuleList(1, [important, urlblock].join('\n'));
+        const engine = new Engine(new RuleStorage([list]));
+        const request = new Request('http://example.com/image.png', 'http://example.org', RequestType.Image);
+        const result = engine.matchRequest(request).getBasicResult();
+        expect(result).toBeTruthy();
+        expect(result?.getText()).toEqual(urlblock);
     });
 });

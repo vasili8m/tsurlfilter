@@ -1,7 +1,6 @@
 import { RuleScanner } from './scanner/rule-scanner';
-import { IRule } from '../rules/rule';
 import { StringLineReader } from './reader/string-line-reader';
-import { RuleUtils } from '../rules/rule-utils';
+import { ScannerType } from './scanner/scanner-type';
 
 /**
  * RuleList represents a set of filtering rules
@@ -15,14 +14,14 @@ export interface IRuleList {
     /**
      * Creates a new scanner that reads the list contents
      */
-    newScanner(): RuleScanner;
+    newScanner(scannerType: ScannerType): RuleScanner;
 
     /**
-     * Retrieves a rule by its index
+     * Retrieves rule text by its index
      *
      * @param ruleIdx
      */
-    retrieveRule(ruleIdx: number): IRule | null;
+    retrieveRuleText(ruleIdx: number): string | null;
 
     /**
      * Closes the rules list
@@ -53,7 +52,6 @@ export class StringRuleList implements IRuleList {
      * Whether to ignore javascript cosmetic rules or not
      */
     private readonly ignoreJS: boolean;
-
 
     /**
      * Constructor
@@ -89,19 +87,19 @@ export class StringRuleList implements IRuleList {
      * Creates a new rules scanner that reads the list contents
      * @return scanner object
      */
-    newScanner(): RuleScanner {
+    newScanner(scannerType: ScannerType): RuleScanner {
         const reader = new StringLineReader(this.rulesText);
-        return new RuleScanner(reader, this.id, this.ignoreCosmetic, this.ignoreJS);
+        return new RuleScanner(reader, this.id, scannerType, this.ignoreCosmetic, this.ignoreJS);
     }
 
     /**
-     * RetrieveRule finds and deserializes rule by its index.
+     * Finds rule text by its index.
      * If there's no rule by that index or rule is invalid, it will return null
      *
      * @param ruleIdx
-     * @return rule object
+     * @return rule text or null
      */
-    retrieveRule(ruleIdx: number): IRule | null {
+    retrieveRuleText(ruleIdx: number): string | null {
         if (ruleIdx < 0 || ruleIdx >= this.rulesText.length) {
             return null;
         }
@@ -116,6 +114,6 @@ export class StringRuleList implements IRuleList {
             return null;
         }
 
-        return RuleUtils.createRule(line, this.id);
+        return line;
     }
 }

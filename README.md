@@ -17,6 +17,7 @@ This is a TypeScript library that implements AdGuard's content blocking rules.
             *   [StealthService](#stealth-service)
             *   [RedirectsService](#redirect-service)
             *   [CookieFiltering](#cookie-filtering)
+            *   [RuleValidator](#rule-validator)
         *   [Content script classes](#content-script-classes)
             *   [CssHitsCounter](#css-hits-counter)
             *   [CookieController](#cookie-controller)
@@ -97,7 +98,9 @@ Engine is a main class of this library. It represents the filtering functionalit
         verbose: true,
     };
 
-    const engine = new Engine(ruleStorage, config);
+    setConfiguration(config)
+
+    const engine = new Engine(ruleStorage);
 ```
 
 ##### Matching requests
@@ -208,7 +211,7 @@ It contains the following properties:
 ##### Applying cosmetic result - scripts
 ```
     const cosmeticRules = cosmeticResult.getScriptRules();
-    const scriptsCode = cosmeticRules.map((x) => x.script).join('\r\n');
+    const scriptsCode = cosmeticRules.map((x) => x.getScript()).join('\r\n');
     const toExecute = buildScriptText(scriptsCode);
 
     chrome.tabs.executeScript(tabId, {
@@ -425,6 +428,28 @@ Check `CookieApi` and `RulesFinder` interfaces
     getBlockingRules(rules: NetworkRule[]): NetworkRule[];
 ```
 
+#### <a id="rule-validator"></a> RuleValidator
+This module is not used in the engine directly, but it can be used to validate filter rules in other libraries or tools
+
+##### Public methods
+```
+    /**
+     * Validates raw rule string
+     * @param rawRule
+     */
+    public static validate(rawRule: string): ValidationResult
+```
+```
+    /**
+    * Valid true - means that the rule is valid, otherwise rule is not valid
+    * If rule is not valid, reason is returned in the error field
+    */
+    interface ValidationResult {
+        valid: boolean;
+        error: string | null;
+    }
+```
+
 #### <a id="content-script-classes"></a> Content script classes
 Classes provided for page context:
 
@@ -483,6 +508,7 @@ Test pages:
 -   `npm start`: Run `npm run build` in watch mode
 -   `npm run test:watch`: Run test suite in [interactive watch mode](https://jestjs.io/docs/en/cli#--watch)
 -   `npm run test:prod`: Run linting and generate coverage
+-   `npm run test:benchmarks`: Run benchmark tests, inspect in `chrome://inspect`
 -   `npm run build`: Generate bundles and typings, create docs
 -   `npm run lint`: Lints code
 -   `npm run commit`: Commit using conventional commit style ([husky](https://github.com/typicode/husky) will tell you to use it if you haven't :wink:)

@@ -1,4 +1,5 @@
 import { StringRuleList } from '../../src/filterlist/rule-list';
+import { ScannerType } from '../../src/filterlist/scanner/scanner-type';
 
 describe('TestStringRuleListScanner', () => {
     const ruleList = new StringRuleList(1, '||example.org\n! test\n##banner', false);
@@ -7,7 +8,7 @@ describe('TestStringRuleListScanner', () => {
         expect(ruleList.getId()).toBe(1);
     });
 
-    const scanner = ruleList.newScanner();
+    const scanner = ruleList.newScanner(ScannerType.All);
 
     it('checks scanner', () => {
         expect(scanner).toBeTruthy();
@@ -33,22 +34,20 @@ describe('TestStringRuleListScanner', () => {
     });
 
     it('retrieves rules by index', () => {
-        let rule = ruleList.retrieveRule(0);
+        let rule = ruleList.retrieveRuleText(0);
 
         expect(rule).toBeTruthy();
-        expect(rule!.getText()).toBe('||example.org');
-        expect(rule!.getFilterListId()).toBe(1);
+        expect(rule!).toBe('||example.org');
 
-        rule = ruleList.retrieveRule(21);
+        rule = ruleList.retrieveRuleText(21);
 
         expect(rule).toBeTruthy();
-        expect(rule!.getText()).toBe('##banner');
-        expect(rule!.getFilterListId()).toBe(1);
+        expect(rule!).toBe('##banner');
 
-        rule = ruleList.retrieveRule(-1);
+        rule = ruleList.retrieveRuleText(-1);
         expect(rule).toBeNull();
 
-        rule = ruleList.retrieveRule(999);
+        rule = ruleList.retrieveRuleText(999);
         expect(rule).toBeNull();
     });
 

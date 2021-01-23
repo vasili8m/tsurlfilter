@@ -3,17 +3,13 @@ import { CosmeticRule } from '../../rules/cosmetic-rule';
 import { ScriptletParser } from './scriptlet-parser';
 import { config } from '../../configuration';
 import { CosmeticContentResult } from './cosmetic-content-result';
+import { ADG_SCRIPTLET_MASK } from '../../rules/cosmetic-rule-marker';
 
 /**
  * This class stores found script rules content in the appropriate collections
  * It is primarily used by the {@see CosmeticResult}
  */
 export class CosmeticScriptsResult implements CosmeticContentResult {
-    /**
-     * AdGuard scriptlet rule mask
-     */
-    private static ADG_SCRIPTLET_MASK = '//scriptlet';
-
     /**
      * Collection of generic (domain insensitive) rules
      */
@@ -59,19 +55,21 @@ export class CosmeticScriptsResult implements CosmeticContentResult {
      * @param rule
      */
     private static setScriptCode(rule: CosmeticRule): void {
-        if (rule.script) {
+        if (rule.script && rule.scriptVerbose) {
             // Already done for this rule
             return;
         }
 
         const ruleContent = rule.getContent();
-        if (!ruleContent.startsWith(CosmeticScriptsResult.ADG_SCRIPTLET_MASK)) {
+        if (!ruleContent.startsWith(ADG_SCRIPTLET_MASK)) {
             // eslint-disable-next-line no-param-reassign
             rule.script = ruleContent;
+            // eslint-disable-next-line no-param-reassign
+            rule.scriptVerbose = ruleContent;
             return;
         }
 
-        const scriptletContent = ruleContent.substr(CosmeticScriptsResult.ADG_SCRIPTLET_MASK.length);
+        const scriptletContent = ruleContent.substr(ADG_SCRIPTLET_MASK.length);
         const scriptletParams = ScriptletParser.parseRule(scriptletContent);
 
         const params: Scriptlets.IConfiguration = {
@@ -79,11 +77,15 @@ export class CosmeticScriptsResult implements CosmeticContentResult {
             engine: config.engine ? config.engine : '',
             name: scriptletParams.name,
             ruleText: rule.getText(),
-            verbose: config.verbose,
+            verbose: false,
             version: config.version ? config.version : '',
         };
 
         // eslint-disable-next-line no-param-reassign
         rule.script = Scriptlets.invoke(params);
+
+        params.verbose = true;
+        // eslint-disable-next-line no-param-reassign
+        rule.scriptVerbose = Scriptlets.invoke(params);
     }
 }

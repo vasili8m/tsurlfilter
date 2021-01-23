@@ -1,7 +1,8 @@
 import { IndexedRule, IRule } from '../../rules/rule';
-import { RuleUtils } from '../../rules/rule-utils';
+import { RuleFactory } from '../../rules/rule-factory';
 import { ILineReader } from '../reader/line-reader';
 import { CosmeticRule, CosmeticRuleType } from '../../rules/cosmetic-rule';
+import { ScannerType } from './scanner-type';
 
 /**
  * Rule scanner implements an interface for reading filtering rules.
@@ -21,6 +22,16 @@ export class RuleScanner {
      * True if we should ignore javascript cosmetic rules
      */
     private readonly ignoreJS: boolean;
+
+    /**
+     * True if we should ignore network rules
+     */
+    private ignoreNetwork: boolean;
+
+    /**
+     * True if we should ignore host rules
+     */
+    private ignoreHost: boolean;
 
     /**
      * Reader object
@@ -47,13 +58,22 @@ export class RuleScanner {
      *
      * @param reader source of the filtering rules
      * @param listId filter list ID
+     * @param scannerType scanner type
      * @param ignoreCosmetic if true, cosmetic rules will be ignored
      * @param ignoreJS if true, javascript cosmetic rules will be ignored
      */
-    constructor(reader: ILineReader, listId: number, ignoreCosmetic?: boolean, ignoreJS?: boolean) {
+
+    constructor(
+        reader: ILineReader, listId: number, scannerType: ScannerType, ignoreCosmetic?: boolean, ignoreJS?: boolean,
+    ) {
         this.reader = reader;
         this.listId = listId;
-        this.ignoreCosmetic = !!ignoreCosmetic;
+
+        this.ignoreCosmetic = !!ignoreCosmetic
+            || ((scannerType & ScannerType.CosmeticRules) !== ScannerType.CosmeticRules);
+        this.ignoreNetwork = (scannerType & ScannerType.NetworkRules) !== ScannerType.NetworkRules;
+        this.ignoreHost = (scannerType & ScannerType.HostRules) !== ScannerType.HostRules;
+
         this.ignoreJS = !!ignoreJS;
     }
 
@@ -73,7 +93,10 @@ export class RuleScanner {
             }
 
             if (line) {
-                const rule = RuleUtils.createRule(line, this.listId);
+                const rule = RuleFactory.createRule(
+                    line, this.listId, this.ignoreNetwork, this.ignoreCosmetic, this.ignoreHost,
+                );
+
                 if (rule && !this.isIgnored(rule)) {
                     this.currentRule = rule;
                     this.currentRuleIndex = lineIndex;
@@ -102,12 +125,12 @@ export class RuleScanner {
     private readNextLine(): string | null {
         const line = this.reader.readLine();
 
-        if (line) {
-            this.currentPos += line.length;
+        if (line != null) {
+            this.currentPos += line.length + 1;
             return line.trim();
         }
 
-        return line;
+        return null;
     }
 
     /**

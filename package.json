@@ -1,9 +1,10 @@
 {
   "name": "@adguard/tsurlfilter",
-  "version": "0.1.0",
+  "version": "0.4.4",
   "description": "This is a TypeScript library that implements AdGuard's content blocking rules",
   "main": "dist/tsurlfilter.umd.js",
-  "module": "dist/tsurlfilter.es5.js",
+  "module": "dist/tsurlfilter.esm.js",
+  "iife": "dist/tsurlfilter.iife.js",
   "typings": "dist/types/tsurlfilter.d.ts",
   "files": [
     "dist"
@@ -29,6 +30,7 @@
     "test": "jest --coverage",
     "test:watch": "jest --coverage --watch",
     "test:prod": "npm run lint && npm run test -- --no-cache",
+    "test:debug": "node --inspect node_modules/.bin/jest --watch --runInBand",
     "build-extension": "npm run build && node ./tasks/build-extension.js",
     "prebuild-extension": "rimraf dist-extension",
     "deploy-docs": "ts-node tools/gh-pages-publish",
@@ -92,7 +94,7 @@
     "@rollup/plugin-typescript": "^2.1.0",
     "@types/jest": "^23.3.14",
     "@types/lodash": "^4.14.149",
-    "@types/node": "^10.17.14",
+    "@types/node": "^10.17.28",
     "@typescript-eslint/eslint-plugin": "^2.19.0",
     "@typescript-eslint/parser": "^2.19.0",
     "colors": "^1.4.0",
@@ -110,21 +112,21 @@
     "lodash": "^4.17.15",
     "rimraf": "^3.0.1",
     "rollup": "^1.31.0",
+    "rollup-plugin-node-globals": "^1.4.0",
     "rollup-plugin-sourcemaps": "^0.5.0",
     "rollup-plugin-typescript2": "^0.25.3",
     "travis-deploy-once": "^5.0.11",
-    "ts-jest": "^24.3.0",
+    "ts-jest": "^25.5.1",
     "ts-node": "^8.6.2",
     "typedoc": "^0.16.9",
-    "typescript": "^3.7.5",
-    "rollup-plugin-node-globals": "latest"
+    "typescript": "^3.7.5"
   },
   "dependencies": {
     "consola": "^2.12.2",
-    "extended-css": "https://github.com/AdguardTeam/ExtendedCss.git#v1.2.8",
+    "extended-css": "git+https://github.com/AdguardTeam/ExtendedCss.git#v1.3.8",
     "is-ip": "^3.1.0",
-    "scriptlets": "https://github.com/AdguardTeam/Scriptlets.git#v1.2.4",
-    "text-encoding": "https://github.com/AdguardTeam/text-encoding.git#v0.7.1",
-    "tldts": "^5.6.3"
+    "scriptlets": "git+https://github.com/AdguardTeam/Scriptlets.git#v1.3.13",
+    "text-encoding": "git+https://github.com/AdguardTeam/text-encoding.git#v0.7.1",
+    "tldts": "^5.6.45"
   }
 }
