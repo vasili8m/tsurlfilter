@@ -87,6 +87,7 @@ interface ICookieFiltering {
 export class CookieFiltering implements ICookieFiltering {
     /**
      * Cookie api implementation
+     * TODO: Use CookieStore
      */
     private cookieManager: CookieApi;
 
@@ -155,25 +156,13 @@ export class CookieFiltering implements ICookieFiltering {
             return;
         }
 
-        const cookieUrl = CookieFiltering.createCookieUrl(cookie);
+        const cookieUrl = BrowserCookie.createCookieUrl(cookie);
         const isThirdParty = this.journal.isThirdParty(cookie);
         const cookieRules = this.rulesFinder.getRulesForCookie(cookieUrl, isThirdParty);
 
         this.applyRulesToCookie(cookieUrl, cookie, isThirdParty, cookieRules, undefined);
 
         this.journal.setProcessed(cookie);
-    }
-
-    /**
-     * Creates url matching provided cookie
-     *
-     * @param cookie
-     */
-    private static createCookieUrl(cookie: BrowserCookie): string {
-        const protocol = cookie.secure ? 'https' : 'http';
-        const path = cookie.path ? `/${cookie.path}` : '';
-
-        return `${protocol}://${cookie.domain}${path}`;
     }
 
     /**

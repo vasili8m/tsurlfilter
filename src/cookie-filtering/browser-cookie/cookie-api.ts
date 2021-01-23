@@ -46,6 +46,11 @@ export interface CookieApi {
     getCookies(url: string): BrowserCookie[];
 
     /**
+     * Fetch all cookies
+     */
+    getAllCookies(): BrowserCookie[];
+
+    /**
      * Fired when a cookie is set or removed.
      * As a special case, note that updating a cookie's properties is implemented as a two step process:
      * the cookie to be updated is first removed entirely, generating a notification with "cause" of "overwrite" .

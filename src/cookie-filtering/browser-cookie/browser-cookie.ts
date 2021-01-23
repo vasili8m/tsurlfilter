@@ -53,4 +53,16 @@ export class BrowserCookie {
         this.name = name;
         this.value = value;
     }
+
+    /**
+     * Creates url matching provided cookie
+     *
+     * @param cookie
+     */
+    public static createCookieUrl(cookie: BrowserCookie): string {
+        const protocol = cookie.secure ? 'https' : 'http';
+        const path = cookie.path ? `/${cookie.path}` : '';
+
+        return `${protocol}://${cookie.domain}${path}`;
+    }
 }
