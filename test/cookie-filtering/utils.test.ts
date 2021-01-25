@@ -29,7 +29,7 @@ describe('Cookie utils - Set-Cookie parsing', () => {
 });
 
 describe('Cookie utils - update max age', () => {
-    const cookie = new BrowserCookie('test', 'test');
+    const cookie = new BrowserCookie('test', 'test', 'test.com');
 
     it('checks update - max age', () => {
         cookie.maxAge = undefined;
@@ -60,19 +60,23 @@ describe('Cookie utils - update max age', () => {
 
     it('checks add - expires', () => {
         cookie.maxAge = undefined;
-        cookie.expires = new Date(new Date().getTime() + 5 * 1000);
+        const date = new Date(new Date().getTime() + 5 * 1000);
+        cookie.expires = date;
 
         expect(CookieUtils.updateCookieMaxAge(cookie, 2)).toBeTruthy();
         expect(cookie.maxAge).toBe(2);
         expect(cookie.expires).toBeDefined();
+        expect(cookie.expires).not.toBe(date);
     });
 
     it('checks no update - expires', () => {
         cookie.maxAge = undefined;
-        cookie.expires = new Date();
+        const date = new Date();
+        cookie.expires = date;
 
         expect(CookieUtils.updateCookieMaxAge(cookie, 2)).toBeFalsy();
         expect(cookie.maxAge).not.toBeDefined();
         expect(cookie.expires).toBeDefined();
+        expect(cookie.expires).toBe(date);
     });
 });
