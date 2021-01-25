@@ -5,6 +5,7 @@ import CookieUtils from './utils';
 import { CookieModifier } from '../modifiers/cookie-modifier';
 import { BrowserCookie } from './browser-cookie/browser-cookie';
 import { CookieApi, OnChangedCause } from './browser-cookie/cookie-api';
+import { CookieStore, ICookieStore } from './browser-cookie/cookie-store';
 import { CookieJournal } from './cookie-journal';
 import { RulesFinder } from './rules-finder';
 
@@ -55,7 +56,7 @@ interface ICookieFiltering {
      * @param request Request
      * @param cookieRules rules
      */
-    modifyCookies(request: Request, cookieRules: NetworkRule[]): void;
+    modifyCookies(request: Request, cookieRules: NetworkRule[]): Promise<void>;
 
     /**
      * Filters blocking first-party rules
@@ -86,10 +87,9 @@ interface ICookieFiltering {
  */
 export class CookieFiltering implements ICookieFiltering {
     /**
-     * Cookie api implementation
-     * TODO: Use CookieStore
+     * Cookie store
      */
-    private cookieManager: CookieApi;
+    private cookieStore: ICookieStore;
 
     /**
      * Filtering log
@@ -114,12 +114,12 @@ export class CookieFiltering implements ICookieFiltering {
      * @param rulesFinder
      */
     constructor(cookieManager: CookieApi, filteringLog: FilteringLog, rulesFinder: RulesFinder) {
-        this.cookieManager = cookieManager;
+        this.cookieStore = new CookieStore(cookieManager);
         this.filteringLog = filteringLog;
         this.journal = new CookieJournal();
         this.rulesFinder = rulesFinder;
 
-        this.cookieManager.setOnChangedListener(this.onCookieChanged.bind(this));
+        this.cookieStore.setOnChangedListener(this.onCookieChanged.bind(this));
     }
 
     /**
@@ -198,19 +198,21 @@ export class CookieFiltering implements ICookieFiltering {
      * @param request Request
      * @param cookieRules rules
      */
-    public modifyCookies(request: Request, cookieRules: NetworkRule[]): void {
+    public async modifyCookies(request: Request, cookieRules: NetworkRule[]): Promise<void> {
         const { url, tabId } = request;
 
-        const cookies = this.cookieManager.getCookies(url);
+        const cookies = await this.cookieStore.getCookies(request.domain);
 
-        for (const cookie of cookies) {
+        const promises = await cookies.map(async (cookie) => {
             const isThirdParty = this.journal.isThirdParty(cookie);
             // The cookie is also considered as third-party if it was not present in request headers,
             // therefore it is not present in journal
-            this.applyRulesToCookie(url, cookie, isThirdParty, cookieRules, tabId!);
+            await this.applyRulesToCookie(url, cookie, isThirdParty, cookieRules, tabId!);
 
             this.journal.setProcessed(cookie);
-        }
+        });
+
+        await Promise.all(promises);
     }
 
     /**
@@ -246,18 +248,18 @@ export class CookieFiltering implements ICookieFiltering {
      * @param cookieRules
      * @param tabId
      */
-    private applyRulesToCookie(
+    private async applyRulesToCookie(
         url: string,
         cookie: BrowserCookie,
         isThirdPartyCookie: boolean,
         cookieRules: NetworkRule[],
         tabId: number | undefined,
-    ): void {
+    ): Promise<void> {
         const cookieName = cookie.name;
 
         const bRule = CookieFiltering.lookupNotModifyingRule(cookieName, cookieRules, isThirdPartyCookie);
         if (bRule) {
-            this.cookieManager.removeCookie(cookie.name, url);
+            await this.cookieStore.removeCookie(cookie);
             this.filteringLog.addCookieEvent(tabId, cookie.name, [bRule]);
             return;
         }
@@ -266,7 +268,7 @@ export class CookieFiltering implements ICookieFiltering {
         if (mRules.length > 0) {
             const appliedRules = CookieFiltering.applyRuleToBrowserCookie(cookie, mRules);
             if (appliedRules.length > 0) {
-                this.cookieManager.modifyCookie(cookie, url);
+                await this.cookieStore.updateCookie(cookie);
                 this.filteringLog.addCookieEvent(tabId, cookie.name, appliedRules);
             }
         }

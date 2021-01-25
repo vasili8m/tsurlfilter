@@ -48,10 +48,12 @@ export class BrowserCookie {
      *
      * @param name
      * @param value
+     * @param domain
      */
-    constructor(name: string, value: string) {
+    constructor(name: string, value: string, domain: string|undefined) {
         this.name = name;
         this.value = value;
+        this.domain = domain;
     }
 
     /**
