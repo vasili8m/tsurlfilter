@@ -46,9 +46,11 @@ export interface CookieApi {
     getCookies(url: string): BrowserCookie[];
 
     /**
-     * Fetch all cookies
+     * Fetch all cookies for specified domain
+     *
+     * @param domain
      */
-    getAllCookies(): BrowserCookie[];
+    getDomainCookies(domain: string): BrowserCookie[];
 
     /**
      * Fired when a cookie is set or removed.

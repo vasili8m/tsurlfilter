@@ -39,7 +39,7 @@ export class CookieStore implements ICookieStore {
     /**
      * Cache
      */
-    private cookies: BrowserCookie[]|null = null;
+    private cookiesMap = new Map<string, BrowserCookie[]>();
 
     /**
      * Constructor
@@ -52,28 +52,32 @@ export class CookieStore implements ICookieStore {
     }
 
     async getCookies(domain: string): Promise<BrowserCookie[]> {
-        if (!this.cookies) {
-            this.cookies = await this.cookieApi.getAllCookies();
+        let cookies = this.cookiesMap.get(domain);
+        if (!cookies) {
+            cookies = await this.cookieApi.getDomainCookies(domain);
+            this.cookiesMap.set(domain, cookies);
         }
 
-        return this.cookies!.filter((x) => x.domain === domain);
+        return cookies;
     }
 
     async updateCookie(cookie: BrowserCookie): Promise<void> {
-        const domainCookies = await this.getCookies(cookie.domain!);
-        const toRemove = domainCookies.filter((c) => c.name === cookie.name);
-
-        this.cookies = this.cookies!.filter((c) => !toRemove.includes(c));
-        this.cookies.push(cookie);
         this.cookieApi.modifyCookie(cookie, BrowserCookie.createCookieUrl(cookie));
+
+        const domainCookies = await this.getCookies(cookie.domain!);
+        const cookies = domainCookies.filter((c) => c.name !== cookie.name);
+        cookies.push(cookie);
+
+        this.cookiesMap.set(cookie.domain!, cookies);
     }
 
     async removeCookie(cookie: BrowserCookie): Promise<void> {
-        const domainCookies = await this.getCookies(cookie.domain!);
-        const toRemove = domainCookies.filter((c) => c.name === cookie.name);
-
-        this.cookies = this.cookies!.filter((c) => !toRemove.includes(c));
         this.cookieApi.removeCookie(cookie.name, BrowserCookie.createCookieUrl(cookie));
+
+        const domainCookies = await this.getCookies(cookie.domain!);
+        const cookies = domainCookies.filter((c) => c.name !== cookie.name);
+
+        this.cookiesMap.set(cookie.domain!, cookies);
     }
 
     private async onChangedListener(

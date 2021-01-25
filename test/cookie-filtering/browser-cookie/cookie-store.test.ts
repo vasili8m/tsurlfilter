@@ -21,7 +21,7 @@ class MockCookieManager implements CookieApi {
 
     getCookies = jest.fn((): BrowserCookie[] => this.cookies);
 
-    getAllCookies = jest.fn((): BrowserCookie[] => this.cookies);
+    getDomainCookies = jest.fn((domain: string): BrowserCookie[] => this.cookies.filter((c) => c.domain === domain));
 
     setOnChangedListener(cb: (changeInfo: { removed: boolean; cookie: BrowserCookie; cause: OnChangedCause }) => void): void {
         this.onChanged = cb;
