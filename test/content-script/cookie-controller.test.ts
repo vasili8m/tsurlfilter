@@ -3,9 +3,15 @@
  */
 
 import CookieController from '../../src/content-script/cookie-controller';
-import { NetworkRule } from '../../src';
+import { NetworkRule, NetworkRuleOption } from '../../src/rules/network-rule';
 
 describe('Cookie Controller Tests', () => {
+    const onAppliedCallback = jest.fn(() => {});
+
+    beforeEach(() => {
+        onAppliedCallback.mockClear();
+    });
+
     it('checks apply simple rule', () => {
         const rules = [
             new NetworkRule('||example.org^$cookie=user_one', 1),
@@ -14,18 +20,17 @@ describe('Cookie Controller Tests', () => {
         const rulesData = rules.map((rule) => ({
             ruleText: rule.getText()!,
             match: rule.getAdvancedModifierValue()!,
+            isThirdParty: false,
         }));
 
-        const callback = jest.fn(() => {});
-
-        const controller = new CookieController(callback);
+        const controller = new CookieController(onAppliedCallback);
         controller.apply(rulesData);
-        expect(callback).not.toBeCalled();
+        expect(onAppliedCallback).not.toBeCalled();
 
         document.cookie = 'user_one=test';
 
         controller.apply(rulesData);
-        expect(callback).toHaveBeenLastCalledWith('||example.org^$cookie=user_one');
+        expect(onAppliedCallback).toHaveBeenLastCalledWith('||example.org^$cookie=user_one');
     });
 
     it('checks apply wildcard rule', () => {
@@ -36,15 +41,14 @@ describe('Cookie Controller Tests', () => {
         const rulesData = rules.map((rule) => ({
             ruleText: rule.getText()!,
             match: rule.getAdvancedModifierValue()!,
+            isThirdParty: false,
         }));
 
-        const callback = jest.fn(() => {});
-
-        const controller = new CookieController(callback);
+        const controller = new CookieController(onAppliedCallback);
         document.cookie = 'user_one=test';
         controller.apply(rulesData);
 
-        expect(callback).toHaveBeenLastCalledWith('||example.org^$cookie');
+        expect(onAppliedCallback).toHaveBeenLastCalledWith('||example.org^$cookie');
     });
 
     it('checks apply regexp rule', () => {
@@ -55,16 +59,31 @@ describe('Cookie Controller Tests', () => {
         const rulesData = rules.map((rule) => ({
             ruleText: rule.getText()!,
             match: rule.getAdvancedModifierValue()!,
+            isThirdParty: false,
         }));
 
-        const callback = jest.fn(() => {});
-
-        const controller = new CookieController(callback);
+        const controller = new CookieController(onAppliedCallback);
         document.cookie = 'user_one=test';
         controller.apply(rulesData);
 
-        expect(callback).toHaveBeenLastCalledWith('||example.org^$cookie=/user/');
+        expect(onAppliedCallback).toHaveBeenLastCalledWith('||example.org^$cookie=/user/');
     });
 
-    // TODO: Add third-party cookie tests
+    it('check third-party rules are skipped for first-party cookies', () => {
+        const rules = [
+            new NetworkRule('||example.org^$third-party,cookie=/user/', 1),
+        ];
+
+        const rulesData = rules.map((rule) => ({
+            ruleText: rule.getText()!,
+            match: rule.getAdvancedModifierValue()!,
+            isThirdParty: rule.isOptionEnabled(NetworkRuleOption.ThirdParty),
+        }));
+
+        const controller = new CookieController(onAppliedCallback);
+        document.cookie = 'user_one=test';
+        controller.apply(rulesData);
+
+        expect(onAppliedCallback).not.toBeCalled();
+    });
 });

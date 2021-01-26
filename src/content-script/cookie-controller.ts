@@ -8,6 +8,11 @@ export default class CookieController {
     private readonly onRuleAppliedCallback: (ruleText: string) => void;
 
     /**
+     * Third-party cookies
+     */
+    private readonly thirdPartyCookies: string[] = [];
+
+    /**
      * Constructor
      *
      * @param callback
@@ -27,13 +32,51 @@ export default class CookieController {
         rules: {
             ruleText: string;
             match: string;
+            isThirdParty: boolean;
         }[],
     ): void {
         this.applyRules(rules);
 
+        let lastCookie = document.cookie;
+        this.listenCookieChange((oldValue, newValue) => {
+            if (newValue === lastCookie) {
+                // Skip changes made by this class
+                return;
+            }
+
+            const newCookies = newValue.split(';').filter((x) => !oldValue.split(';').includes(x));
+            // Cookies found by polling are all considered as third-party
+            this.thirdPartyCookies.push(...newCookies);
+            this.applyRules(rules);
+
+            lastCookie = document.cookie;
+        });
+
         window.addEventListener('beforeunload', () => {
             this.applyRules(rules);
         });
+    }
+
+    /**
+     * Polling document cookie
+     *
+     * @param callback
+     * @param interval
+     */
+    // eslint-disable-next-line class-methods-use-this
+    private listenCookieChange(callback: (oldValue: string, newValue: string) => void, interval = 1000): void {
+        let lastCookie = document.cookie;
+
+        setInterval(() => {
+            const { cookie } = document;
+            if (cookie !== lastCookie) {
+                try {
+                    callback(lastCookie, cookie);
+                } finally {
+                    lastCookie = cookie;
+                }
+            }
+        }, interval);
     }
 
     /**
@@ -45,6 +88,7 @@ export default class CookieController {
         rules: {
             ruleText: string;
             match: string;
+            isThirdParty: boolean;
         }[],
     ): void {
         document.cookie.split(';').forEach((cookieStr) => {
@@ -53,17 +97,10 @@ export default class CookieController {
                 return;
             }
 
-            // TODO: Detect if this cookie is third-party
-            // The cookie is considered third-party if
-            // - it has been set in third-party iframe
-            // eslint-disable-next-line max-len
-            // - https://stackoverflow.com/questions/14344319/can-i-be-notified-of-cookie-changes-in-client-side-javascript
-            // TODO: use Method 1: Periodic Polling
-            // Use rule thirdparty flag
-
+            const isThirdPartyCookie = this.thirdPartyCookies.includes(cookieStr);
             const cookieName = cookieStr.slice(0, pos).trim();
             rules.forEach((rule) => {
-                this.applyRule(rule.match, cookieName, rule.ruleText);
+                this.applyRule(rule, cookieName, isThirdPartyCookie);
             });
         });
     }
@@ -71,12 +108,20 @@ export default class CookieController {
     /**
      * Applies rule
      *
-     * @param match
+     * @param rule
      * @param cookieName
-     * @param ruleText
+     * @param isThirdPartyCookie
      */
-    private applyRule(match: string, cookieName: string, ruleText: string): void {
-        const regex = match ? CookieController.toRegExp(match) : CookieController.toRegExp('/.?/');
+    private applyRule(
+        rule: { ruleText: string; match: string; isThirdParty: boolean },
+        cookieName: string,
+        isThirdPartyCookie = false,
+    ): void {
+        if (isThirdPartyCookie !== rule.isThirdParty) {
+            return;
+        }
+
+        const regex = rule.match ? CookieController.toRegExp(rule.match) : CookieController.toRegExp('/.?/');
         if (!regex.test(cookieName)) {
             return;
         }
@@ -85,8 +130,8 @@ export default class CookieController {
         for (let i = 0; i <= hostParts.length - 1; i += 1) {
             const hostName = hostParts.slice(i).join('.');
             if (hostName) {
-                this.removeCookieFromHost(cookieName, hostName);
-                this.onRuleAppliedCallback(ruleText);
+                CookieController.removeCookieFromHost(cookieName, hostName);
+                this.onRuleAppliedCallback(rule.ruleText);
             }
         }
     }
@@ -97,7 +142,7 @@ export default class CookieController {
      * @param cookieName
      * @param hostName
      */
-    private removeCookieFromHost(cookieName: string, hostName: string): void {
+    private static removeCookieFromHost(cookieName: string, hostName: string): void {
         const cookieSpec = `${cookieName}=`;
         const domain1 = `; domain=${hostName}`;
         const domain2 = `; domain=.${hostName}`;
