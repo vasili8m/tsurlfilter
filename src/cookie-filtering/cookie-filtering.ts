@@ -203,7 +203,7 @@ export class CookieFiltering implements ICookieFiltering {
 
         const cookies = await this.cookieStore.getCookies(request.domain);
 
-        const promises = await cookies.map(async (cookie) => {
+        const promises = cookies.map(async (cookie) => {
             const isThirdParty = this.journal.isThirdParty(cookie);
             // The cookie is also considered as third-party if it was not present in request headers,
             // therefore it is not present in journal
