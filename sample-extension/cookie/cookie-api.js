@@ -58,11 +58,16 @@ export class CookieApi {
             delete update.domain;
         }
 
+        // Unsupported properties
+        delete update.hostOnly;
+        delete update.session;
+        delete update.maxAge;
+
         return new Promise((resolve) => {
             this.browser.cookies.set(update, () => {
                 const ex = this.browser.runtime.lastError;
                 if (ex) {
-                    console.error(`Error update cookie ${apiCookie.name} - ${url}: ${ex}`);
+                    console.error(`Error update cookie ${apiCookie.name} - ${url}: ${ex.message}`);
                 }
                 resolve();
             });
@@ -80,6 +85,22 @@ export class CookieApi {
     }
 
     /**
+     * Get domain cookies
+     *
+     * @param domain
+     * @return {Array<BrowserApiCookie>}
+     */
+    async getDomainCookies(domain) {
+        return new Promise((resolve) => {
+            this.browser.cookies.getAll({
+                domain,
+            }, (cookies) => {
+                resolve(cookies || []);
+            });
+        });
+    }
+
+    /**
      * Removes cookie
      *
      * @param {string} name Cookie name
@@ -94,7 +115,7 @@ export class CookieApi {
             }, () => {
                 const ex = this.browser.runtime.lastError;
                 if (ex) {
-                    console.error(`Error remove cookie ${name} - ${url}: ${ex}`);
+                    console.error(`Error remove cookie ${name} - ${url}: ${ex.message}`);
                 }
                 resolve();
             });

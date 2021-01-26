@@ -207,10 +207,6 @@ export class Application {
     onResponseHeadersReceived(details) {
         let responseHeaders = details.responseHeaders || [];
 
-        const contentType = Application.getHeaderValueByName(responseHeaders, 'content-type');
-        const replaceRules = this.getReplaceRules(details);
-        const htmlRules = this.getHtmlRules(details);
-
         const requestType = Application.transformRequestType(details.type);
         const request = new TSUrlFilter.Request(details.url, details.initiator, requestType);
         request.requestId = details.requestId;
@@ -266,7 +262,7 @@ export class Application {
         }
 
         const requestType = Application.transformRequestType(details.type);
-        const request = new AGUrlFilter.Request(details.url, details.initiator, requestType);
+        const request = new TSUrlFilter.Request(details.url, details.initiator, requestType);
         request.requestId = details.requestId;
         request.tabId = details.tabId;
 
@@ -293,7 +289,9 @@ export class Application {
         }
 
         // If cookie rules not found - apply stealth rules
-        return this.stealthService.getCookieRules();
+        // TODO: Fix stealth service
+        // return this.stealthService.getCookieRules(request);
+        return [];
     }
 
     /**

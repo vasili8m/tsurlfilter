@@ -1,4 +1,5 @@
-/* eslint-disable no-console, no-undef */
+/* eslint-disable no-console, no-undef, import/extensions, import/no-unresolved */
+import * as TSUrlFilter from '../engine.js';
 
 /**
  * Applies cookie rules via content-script
@@ -16,6 +17,7 @@ export const applyCookieRules = (tabId, rules) => {
         return {
             ruleText: rule.getText(),
             match: rule.getAdvancedModifierValue(),
+            isThirdParty: rule.isOptionEnabled(TSUrlFilter.NetworkRuleOption.ThirdParty),
         };
     });
 
@@ -24,7 +26,7 @@ export const applyCookieRules = (tabId, rules) => {
                 (() => {
                     const rulesData = JSON.parse('${JSON.stringify(rulesData)}');
                     
-                    const { CookieController } = AGUrlFilter;
+                    const { CookieController } = TSUrlFilter;
                     const cookieController = new CookieController((rule) => {
                         console.debug('Cookie rule applied');
                         console.debug(rule);
