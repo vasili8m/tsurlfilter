@@ -59,6 +59,7 @@ export default class CookieController {
             // eslint-disable-next-line max-len
             // - https://stackoverflow.com/questions/14344319/can-i-be-notified-of-cookie-changes-in-client-side-javascript
             // TODO: use Method 1: Periodic Polling
+            // Use rule thirdparty flag
 
             const cookieName = cookieStr.slice(0, pos).trim();
             rules.forEach((rule) => {
@@ -84,7 +85,8 @@ export default class CookieController {
         for (let i = 0; i <= hostParts.length - 1; i += 1) {
             const hostName = hostParts.slice(i).join('.');
             if (hostName) {
-                this.removeCookieFromHost(cookieName, hostName, ruleText);
+                this.removeCookieFromHost(cookieName, hostName);
+                this.onRuleAppliedCallback(ruleText);
             }
         }
     }
@@ -94,9 +96,8 @@ export default class CookieController {
      *
      * @param cookieName
      * @param hostName
-     * @param ruleText
      */
-    private removeCookieFromHost(cookieName: string, hostName: string, ruleText: string): void {
+    private removeCookieFromHost(cookieName: string, hostName: string): void {
         const cookieSpec = `${cookieName}=`;
         const domain1 = `; domain=${hostName}`;
         const domain2 = `; domain=.${hostName}`;
@@ -108,8 +109,6 @@ export default class CookieController {
         document.cookie = cookieSpec + path + expiration;
         document.cookie = cookieSpec + domain1 + path + expiration;
         document.cookie = cookieSpec + domain2 + path + expiration;
-
-        this.onRuleAppliedCallback(ruleText);
     }
 
     /**
