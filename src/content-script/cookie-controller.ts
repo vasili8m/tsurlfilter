@@ -8,9 +8,9 @@ export default class CookieController {
     private readonly onRuleAppliedCallback: (ruleText: string) => void;
 
     /**
-     * Third-party cookies
+     * Is current context third-party
      */
-    private readonly thirdPartyCookies: string[] = [];
+    private readonly isThirdPartyContext: boolean = false;
 
     /**
      * Constructor
@@ -19,6 +19,8 @@ export default class CookieController {
      */
     constructor(callback: (ruleText: string) => void) {
         this.onRuleAppliedCallback = callback;
+
+        this.isThirdPartyContext = this.isThirdPartyFrame();
     }
 
     /**
@@ -44,9 +46,6 @@ export default class CookieController {
                 return;
             }
 
-            const newCookies = newValue.split(';').filter((x) => !oldValue.split(';').includes(x));
-            // Cookies found by polling are all considered as third-party
-            this.thirdPartyCookies.push(...newCookies);
             this.applyRules(rules);
 
             lastCookie = document.cookie;
@@ -80,6 +79,18 @@ export default class CookieController {
     }
 
     /**
+     * Checks if current context is third-party
+     */
+    // eslint-disable-next-line class-methods-use-this
+    private isThirdPartyFrame(): boolean {
+        try {
+            return window.self !== window.top && document.location.hostname !== window.parent.location.hostname;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    /**
      * Applies rules to document cookies
      *
      * @param rules
@@ -97,10 +108,9 @@ export default class CookieController {
                 return;
             }
 
-            const isThirdPartyCookie = this.thirdPartyCookies.includes(cookieStr);
             const cookieName = cookieStr.slice(0, pos).trim();
             rules.forEach((rule) => {
-                this.applyRule(rule, cookieName, isThirdPartyCookie);
+                this.applyRule(rule, cookieName);
             });
         });
     }
@@ -110,14 +120,12 @@ export default class CookieController {
      *
      * @param rule
      * @param cookieName
-     * @param isThirdPartyCookie
      */
     private applyRule(
         rule: { ruleText: string; match: string; isThirdParty: boolean },
         cookieName: string,
-        isThirdPartyCookie = false,
     ): void {
-        if (isThirdPartyCookie !== rule.isThirdParty) {
+        if (this.isThirdPartyContext !== rule.isThirdParty) {
             return;
         }
 
