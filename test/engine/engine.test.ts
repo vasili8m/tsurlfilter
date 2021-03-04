@@ -279,3 +279,36 @@ describe('$urlblock modifier', () => {
         expect(result?.getText()).toEqual(urlblock);
     });
 });
+
+describe('$specifichide modifier', () => {
+    it('should not allowlist generic rules', () => {
+        const elemhideRule = 'example.org##div';
+        const cosmeticRule = 'example.org#$#div { display: none !important; }';
+        const genericCosmeticRule = '#$#div { display: none !important; }';
+        const genericElemhideRule = '##div';
+        const genericCssRuleWithExclusion = '~google.com#$#div { display: none !important }';
+        const specifichideRule = '@@||example.org^$specifichide';
+        const list = new StringRuleList(1, [
+            elemhideRule,
+            cosmeticRule,
+            genericCosmeticRule,
+            genericElemhideRule,
+            genericCssRuleWithExclusion,
+            specifichideRule,
+        ].join('\n'));
+        const engine = new Engine(new RuleStorage([list]));
+        const request = new Request('http://example.org', '', RequestType.Document);
+        const result = engine.matchRequest(request);
+        const cosmeticResult = engine.getCosmeticResult('example.org', result.getCosmeticOption());
+        expect(cosmeticResult).toBeTruthy();
+        expect(cosmeticResult.elementHiding.specific).toHaveLength(0);
+        expect(cosmeticResult.elementHiding.generic).toHaveLength(1);
+        expect(cosmeticResult.elementHiding.generic[0].getText()).toBe(genericElemhideRule);
+        expect(cosmeticResult.CSS.specific).toHaveLength(0);
+        expect(cosmeticResult.CSS.generic).toHaveLength(2);
+
+        const cssGenericRules = cosmeticResult.CSS.generic;
+        expect(cssGenericRules.some((rule) => rule.getText() === genericCssRuleWithExclusion)).toBeTruthy();
+        expect(cssGenericRules.some((rule) => rule.getText() === genericCosmeticRule)).toBeTruthy();
+    });
+});

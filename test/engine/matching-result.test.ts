@@ -61,8 +61,25 @@ describe('TestGetCosmeticOption', () => {
 
         expect(result).toBeTruthy();
         expect(result.getCosmeticOption()).toBeTruthy();
-        // eslint-disable-next-line max-len
-        expect(result.getCosmeticOption()).toEqual(CosmeticOption.CosmeticOptionCSS | CosmeticOption.CosmeticOptionJS | CosmeticOption.CosmeticOptionHtml);
+        expect(result.getCosmeticOption()).toEqual(
+            CosmeticOption.CosmeticOptionCSS
+            | CosmeticOption.CosmeticOptionJS
+            | CosmeticOption.CosmeticOptionHtml,
+        );
+    });
+
+    it('works with $specifichide modifier', () => {
+        rules = [new NetworkRule('@@||example.org^$specifichide', 0)];
+
+        const result = new MatchingResult(rules, sourceRules);
+
+        expect(result).toBeTruthy();
+        expect(result.getCosmeticOption()).toBeTruthy();
+        expect(result.getCosmeticOption()).toEqual(
+            CosmeticOption.CosmeticOptionGenericCSS
+            | CosmeticOption.CosmeticOptionJS
+            | CosmeticOption.CosmeticOptionHtml,
+        );
     });
 
     it('works with $jsinject modifier', () => {
@@ -72,8 +89,11 @@ describe('TestGetCosmeticOption', () => {
 
         expect(result).toBeTruthy();
         expect(result.getCosmeticOption()).toBeTruthy();
-        // eslint-disable-next-line max-len
-        expect(result.getCosmeticOption()).toEqual(CosmeticOption.CosmeticOptionCSS | CosmeticOption.CosmeticOptionGenericCSS | CosmeticOption.CosmeticOptionHtml);
+        expect(result.getCosmeticOption()).toEqual(
+            CosmeticOption.CosmeticOptionCSS
+            | CosmeticOption.CosmeticOptionGenericCSS
+            | CosmeticOption.CosmeticOptionHtml,
+        );
     });
 
     it('works with $elemhide modifier', () => {
@@ -93,8 +113,11 @@ describe('TestGetCosmeticOption', () => {
 
         expect(result).toBeTruthy();
         expect(result.getCosmeticOption()).toBeTruthy();
-        // eslint-disable-next-line max-len
-        expect(result.getCosmeticOption()).toEqual(CosmeticOption.CosmeticOptionCSS | CosmeticOption.CosmeticOptionGenericCSS | CosmeticOption.CosmeticOptionJS);
+        expect(result.getCosmeticOption()).toEqual(
+            CosmeticOption.CosmeticOptionCSS
+            | CosmeticOption.CosmeticOptionGenericCSS
+            | CosmeticOption.CosmeticOptionJS,
+        );
     });
 
     it('works with $document modifier', () => {

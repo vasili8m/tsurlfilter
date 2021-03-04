@@ -80,8 +80,7 @@ describe('Test cosmetic engine', () => {
         const cosmeticEngine = new CosmeticEngine(createTestRuleStorage(1, rules));
         const result = cosmeticEngine.match('example.org', CosmeticOption.CosmeticOptionGenericCSS);
         expect(result).toBeDefined();
-
-        expect(result.elementHiding.generic.length).toBe(0);
+        expect(result.elementHiding.generic.length).toBe(1);
         expect(result.elementHiding.specific.length).toBe(0);
     });
 

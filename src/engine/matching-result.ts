@@ -225,6 +225,10 @@ export class MatchingResult {
             option ^= CosmeticOption.CosmeticOptionGenericCSS;
         }
 
+        if (this.basicRule.isOptionEnabled(NetworkRuleOption.Specifichide)) {
+            option ^= CosmeticOption.CosmeticOptionCSS;
+        }
+
         if (this.basicRule.isOptionEnabled(NetworkRuleOption.Jsinject)) {
             option ^= CosmeticOption.CosmeticOptionJS;
         }

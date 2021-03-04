@@ -131,6 +131,13 @@ export class CosmeticEngine {
 
             CosmeticEngine.appendSpecificRules(cosmeticResult.elementHiding, this.elementHidingLookupTable, hostname);
             CosmeticEngine.appendSpecificRules(cosmeticResult.CSS, this.cssLookupTable, hostname);
+        } else if (includeGeneric) {
+            CosmeticEngine.appendGenericRules(
+                cosmeticResult.elementHiding,
+                this.elementHidingLookupTable,
+                hostname,
+            );
+            CosmeticEngine.appendGenericRules(cosmeticResult.CSS, this.cssLookupTable, hostname);
         }
 
         if (includeJs) {

@@ -51,6 +51,10 @@ export class RuleConverter {
 
     private static GENERICHIDE = 'generichide';
 
+    private static SHIDE_REGEX = /(.+[^#]\$.*)(shide)($|,.+)/i;
+
+    private static SPECIFICHIDE = 'specifichide';
+
     private static EHIDE_REGEX = /(.+[^#]\$.*)(ehide)($|,.+)/i;
 
     private static ELEMHIDE = 'elemhide';
@@ -476,6 +480,7 @@ export class RuleConverter {
             || RuleConverter.FRAME_REGEX.test(rule)
             || RuleConverter.THIRD_PARTY_1P_3P_REGEX.test(rule)
             || RuleConverter.GHIDE_REGEX.test(rule)
+            || RuleConverter.SHIDE_REGEX.test(rule)
             || RuleConverter.EHIDE_REGEX.test(rule)) {
             return rule
                 .replace(RuleConverter.FIRST_PARTY_REGEX, RuleConverter.FIRST_PARTY_REPLACEMENT)
@@ -485,6 +490,7 @@ export class RuleConverter {
                 .replace(RuleConverter.THIRD_PARTY_1P, RuleConverter.THIRD_PARTY_1P_REPLACEMENT)
                 .replace(RuleConverter.THIRD_PARTY_3P, RuleConverter.THIRD_PARTY_3P_REPLACEMENT)
                 .replace(RuleConverter.GHIDE_REGEX, `$1${RuleConverter.GENERICHIDE}$3`)
+                .replace(RuleConverter.SHIDE_REGEX, `$1${RuleConverter.SPECIFICHIDE}$3`)
                 .replace(RuleConverter.EHIDE_REGEX, `$1${RuleConverter.ELEMHIDE}$3`);
         }
 
