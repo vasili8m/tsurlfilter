@@ -1,9 +1,8 @@
 import { Engine } from '../../src/engine/engine';
-import { Request } from '../../src';
+import { CosmeticOption, Request } from '../../src';
 import { StringRuleList } from '../../src/filterlist/rule-list';
 import { RuleStorage } from '../../src/filterlist/rule-storage';
 import { config, setConfiguration } from '../../src/configuration';
-import { CosmeticOption } from '../../src/engine/cosmetic-option';
 import { RequestType } from '../../src/request-type';
 
 describe('TestEngineMatchRequest', () => {
@@ -152,12 +151,16 @@ describe('TestEngineCosmeticResult - elemhide', () => {
         result = engine.getCosmeticResult('example.org', CosmeticOption.CosmeticOptionCSS);
 
         expect(result.elementHiding.generic.length).toEqual(0);
-        expect(result.elementHiding.specific.length).toEqual(1);
+        expect(result.elementHiding.specific.length).toEqual(0);
         expect(result.elementHiding.genericExtCss.length).toBe(0);
-        expect(result.elementHiding.specificExtCss.length).toBe(1);
+        expect(result.elementHiding.specificExtCss.length).toBe(0);
 
-        result = engine.getCosmeticResult('example.org',
-            CosmeticOption.CosmeticOptionCSS | CosmeticOption.CosmeticOptionGenericCSS);
+        result = engine.getCosmeticResult(
+            'example.org',
+            CosmeticOption.CosmeticOptionCSS
+            | CosmeticOption.CosmeticOptionGenericCSS
+            | CosmeticOption.CosmeticOptionSpecificCSS,
+        );
 
         expect(result.elementHiding.generic.length).toEqual(1);
         expect(result.elementHiding.specific.length).toEqual(1);
@@ -202,12 +205,16 @@ describe('TestEngineCosmeticResult - cosmetic css', () => {
         result = engine.getCosmeticResult('example.org', CosmeticOption.CosmeticOptionCSS);
 
         expect(result.CSS.generic.length).toEqual(0);
-        expect(result.CSS.specific.length).toEqual(1);
+        expect(result.CSS.specific.length).toEqual(0);
         expect(result.CSS.genericExtCss.length).toBe(0);
-        expect(result.CSS.specificExtCss.length).toBe(1);
+        expect(result.CSS.specificExtCss.length).toBe(0);
 
-        result = engine.getCosmeticResult('example.org',
-            CosmeticOption.CosmeticOptionCSS | CosmeticOption.CosmeticOptionGenericCSS);
+        result = engine.getCosmeticResult(
+            'example.org',
+            CosmeticOption.CosmeticOptionCSS
+            | CosmeticOption.CosmeticOptionGenericCSS
+            | CosmeticOption.CosmeticOptionSpecificCSS,
+        );
 
         expect(result.CSS.generic.length).toEqual(1);
         expect(result.CSS.specific.length).toEqual(1);

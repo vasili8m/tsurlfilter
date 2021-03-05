@@ -1,6 +1,4 @@
-import { MatchingResult } from '../../src/engine/matching-result';
-import { NetworkRule } from '../../src';
-import { CosmeticOption } from '../../src/engine/cosmetic-option';
+import { MatchingResult, NetworkRule, CosmeticOption } from '../../src';
 
 describe('TestNewMatchingResult', () => {
     it('works if basic rule is found', () => {
@@ -63,6 +61,7 @@ describe('TestGetCosmeticOption', () => {
         expect(result.getCosmeticOption()).toBeTruthy();
         expect(result.getCosmeticOption()).toEqual(
             CosmeticOption.CosmeticOptionCSS
+            | CosmeticOption.CosmeticOptionSpecificCSS
             | CosmeticOption.CosmeticOptionJS
             | CosmeticOption.CosmeticOptionHtml,
         );
@@ -76,7 +75,8 @@ describe('TestGetCosmeticOption', () => {
         expect(result).toBeTruthy();
         expect(result.getCosmeticOption()).toBeTruthy();
         expect(result.getCosmeticOption()).toEqual(
-            CosmeticOption.CosmeticOptionGenericCSS
+            CosmeticOption.CosmeticOptionCSS
+            | CosmeticOption.CosmeticOptionGenericCSS
             | CosmeticOption.CosmeticOptionJS
             | CosmeticOption.CosmeticOptionHtml,
         );
@@ -92,6 +92,7 @@ describe('TestGetCosmeticOption', () => {
         expect(result.getCosmeticOption()).toEqual(
             CosmeticOption.CosmeticOptionCSS
             | CosmeticOption.CosmeticOptionGenericCSS
+            | CosmeticOption.CosmeticOptionSpecificCSS
             | CosmeticOption.CosmeticOptionHtml,
         );
     });
@@ -116,6 +117,7 @@ describe('TestGetCosmeticOption', () => {
         expect(result.getCosmeticOption()).toEqual(
             CosmeticOption.CosmeticOptionCSS
             | CosmeticOption.CosmeticOptionGenericCSS
+            | CosmeticOption.CosmeticOptionSpecificCSS
             | CosmeticOption.CosmeticOptionJS,
         );
     });

@@ -111,8 +111,12 @@ export class CosmeticEngine {
      */
     match(hostname: string, option: CosmeticOption): CosmeticResult {
         const includeCss = (option & CosmeticOption.CosmeticOptionCSS) === CosmeticOption.CosmeticOptionCSS;
+
         const includeGeneric = (option
             & CosmeticOption.CosmeticOptionGenericCSS) === CosmeticOption.CosmeticOptionGenericCSS;
+
+        const includeSpecific = (option
+            & CosmeticOption.CosmeticOptionSpecificCSS) === CosmeticOption.CosmeticOptionSpecificCSS;
 
         const includeJs = (option & CosmeticOption.CosmeticOptionJS) === CosmeticOption.CosmeticOptionJS;
         const includeHtml = (option & CosmeticOption.CosmeticOptionHtml) === CosmeticOption.CosmeticOptionHtml;
@@ -128,16 +132,14 @@ export class CosmeticEngine {
                 );
                 CosmeticEngine.appendGenericRules(cosmeticResult.CSS, this.cssLookupTable, hostname);
             }
-
-            CosmeticEngine.appendSpecificRules(cosmeticResult.elementHiding, this.elementHidingLookupTable, hostname);
-            CosmeticEngine.appendSpecificRules(cosmeticResult.CSS, this.cssLookupTable, hostname);
-        } else if (includeGeneric) {
-            CosmeticEngine.appendGenericRules(
-                cosmeticResult.elementHiding,
-                this.elementHidingLookupTable,
-                hostname,
-            );
-            CosmeticEngine.appendGenericRules(cosmeticResult.CSS, this.cssLookupTable, hostname);
+            if (includeSpecific) {
+                CosmeticEngine.appendSpecificRules(
+                    cosmeticResult.elementHiding,
+                    this.elementHidingLookupTable,
+                    hostname,
+                );
+                CosmeticEngine.appendSpecificRules(cosmeticResult.CSS, this.cssLookupTable, hostname);
+            }
         }
 
         if (includeJs) {
@@ -149,6 +151,7 @@ export class CosmeticEngine {
             if (includeGeneric) {
                 CosmeticEngine.appendGenericRules(cosmeticResult.Html, this.htmlLookupTable, hostname);
             }
+
             CosmeticEngine.appendSpecificRules(cosmeticResult.Html, this.htmlLookupTable, hostname);
         }
 

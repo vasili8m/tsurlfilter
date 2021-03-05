@@ -23,3 +23,5 @@ export * from './utils/rule-validator';
 export * from './cookie-filtering/cookie-filtering';
 export { CosmeticRuleMarker } from './rules/cosmetic-rule-marker';
 export { RuleSyntaxUtils } from './utils/rule-syntax-utils';
+
+console.log('hello from tsurlfilter');
