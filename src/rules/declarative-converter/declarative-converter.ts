@@ -184,6 +184,7 @@ export class DeclarativeConverter {
         //  - urlFilter?: string;
         const pattern = rule.getPattern();
         if (pattern) {
+            // TODO check if "||" in the pattern has the same meaning as in the declarative rules
             condition.urlFilter = pattern;
         }
 
