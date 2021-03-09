@@ -142,6 +142,7 @@ type RowRule = Partial<Rule>;
 type RequiredBy<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
 export class DeclarativeConverter {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     setPriority(declarativeRule: RowRule, rule: NetworkRule): RowRule {
         // TODO set priority
         return declarativeRule;
