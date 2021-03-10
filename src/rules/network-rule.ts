@@ -459,7 +459,7 @@ export class NetworkRule implements rule.IRule {
      * matchRequestType checks if the request's type matches the rule properties
      * @param requestType - request type to check.
      */
-    private matchRequestType(requestType: RequestType): boolean {
+    public matchRequestType(requestType: RequestType): boolean {
         if (this.permittedRequestTypes !== 0) {
             if ((this.permittedRequestTypes & requestType) !== requestType) {
                 return false;

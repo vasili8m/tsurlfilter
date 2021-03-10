@@ -133,4 +133,43 @@ describe('DeclarativeConverter', () => {
             },
         });
     });
+
+    it('converts rules with specified request types', () => {
+        const scriptRuleText = '||example.org^$script';
+        const ruleId = 1;
+        const scriptRuleDeclarative = declarativeConverter.convert(scriptRuleText, ruleId);
+        expect(scriptRuleDeclarative).toEqual({
+            id: ruleId,
+            action: {
+                type: 'block',
+            },
+            condition: {
+                urlFilter: '||example.org^',
+                resourceTypes: ['script'],
+            },
+        });
+
+        const negatedScriptRule = '||example.org^$~script';
+        const negatedScriptRuleDeclarative = declarativeConverter.convert(negatedScriptRule, ruleId);
+        expect(negatedScriptRuleDeclarative).toEqual({
+            id: ruleId,
+            action: {
+                type: 'block',
+            },
+            condition: {
+                urlFilter: '||example.org^',
+                excludedResourceTypes: ['script'],
+            },
+        });
+
+        const multipleRequestTypesRule = '||example.org^$script,image,media';
+        const multipleDeclarativeRule = declarativeConverter.convert(multipleRequestTypesRule, ruleId);
+        expect(multipleDeclarativeRule!.condition?.resourceTypes?.sort())
+            .toEqual(['script', 'image', 'media'].sort());
+
+        const multipleNegatedRequestTypesRule = '||example.org^$~script,~subdocument';
+        const multipleNegatedDeclarativeRule = declarativeConverter.convert(multipleNegatedRequestTypesRule, ruleId);
+        expect(multipleNegatedDeclarativeRule!.condition?.excludedResourceTypes?.sort())
+            .toEqual(['script', 'sub_frame'].sort());
+    });
 });

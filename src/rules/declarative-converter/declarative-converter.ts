@@ -4,6 +4,7 @@
  */
 import { NetworkRule, NetworkRuleOption } from '../network-rule';
 import { RuleFactory } from '../rule-factory';
+import { RequestType } from '../../request-type';
 
 /**
  * https://developer.chrome.com/docs/extensions/reference/declarativeNetRequest/#type-DomainType
@@ -120,7 +121,7 @@ type RuleCondition = {
     domainType?: DomainType;
     domains?: string[];
     excludedDomains?: string[];
-    excludedResource?: ResourceType[];
+    excludedResourceTypes?: ResourceType[];
     isUrlFilterCaseSensitive?: boolean;
     regexFilter?: string;
     resourceTypes?: ResourceType[];
@@ -130,25 +131,44 @@ type RuleCondition = {
 /**
  * https://developer.chrome.com/docs/extensions/reference/declarativeNetRequest/#type-Rule
  */
-type Rule = {
+type DeclarativeRule = {
     id: number;
     priority?: number;
     action: RuleAction;
     condition: RuleCondition;
 };
 
-type RowRule = Partial<Rule>;
-
-type RequiredBy<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
+const DECLARATIVE_RESOURCE_TYPES_MAP = {
+    [ResourceType.main_frame]: RequestType.Document,
+    [ResourceType.sub_frame]: RequestType.Subdocument,
+    [ResourceType.stylesheet]: RequestType.Stylesheet,
+    [ResourceType.script]: RequestType.Script,
+    [ResourceType.image]: RequestType.Image,
+    [ResourceType.font]: RequestType.Font,
+    [ResourceType.object]: RequestType.Object,
+    [ResourceType.xmlhttprequest]: RequestType.XmlHttpRequest,
+    [ResourceType.ping]: RequestType.Ping,
+    // [ResourceType.csp_report]: RequestType.Document, // TODO what should match this resource type?
+    [ResourceType.media]: RequestType.Media,
+    [ResourceType.websocket]: RequestType.Websocket,
+    [ResourceType.other]: RequestType.Other,
+};
 
 export class DeclarativeConverter {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    setPriority(declarativeRule: RowRule, rule: NetworkRule): RowRule {
-        // TODO set priority
-        return declarativeRule;
+    private getResourceTypes(requestTypes: RequestType): ResourceType[] {
+        return Object.entries(DECLARATIVE_RESOURCE_TYPES_MAP)
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            .filter(([resourceTypeKey, requestType]) => (requestTypes & requestType) === requestType)
+            .map(([resourceTypeKey]) => ResourceType[resourceTypeKey as ResourceType]);
     }
 
-    setAction(declarativeRule: RowRule, rule: NetworkRule): RequiredBy<RowRule, 'action'> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    getPriority(rule: NetworkRule): number {
+        // TODO set priority
+        return 1;
+    }
+
+    getAction(rule: NetworkRule): RuleAction {
         const action = {} as RuleAction;
 
         // TODO RuleAction
@@ -170,10 +190,10 @@ export class DeclarativeConverter {
             action.type = RuleActionType.block;
         }
 
-        return { ...declarativeRule, action };
+        return action;
     }
 
-    setCondition(declarativeRule: RowRule, rule: NetworkRule): RequiredBy<RowRule, 'condition'> {
+    getCondition(rule: NetworkRule): RuleCondition {
         const condition = {} as RuleCondition;
 
         // TODO
@@ -184,7 +204,7 @@ export class DeclarativeConverter {
         //  - urlFilter?: string;
         const pattern = rule.getPattern();
         if (pattern) {
-            // TODO check if "||" in the pattern has the same meaning as in the declarative rules
+            // FIXME check if "||" in the pattern has the same meaning as in the declarative rules
             condition.urlFilter = pattern;
         }
 
@@ -195,7 +215,7 @@ export class DeclarativeConverter {
             condition.domainType = DomainType.firstParty;
         }
 
-        // TODO
+        // FIXME
         //  - The entries must consist of only ascii characters.
         //  - Use punycode encoding for internationalized domains.
         // set domains
@@ -204,7 +224,7 @@ export class DeclarativeConverter {
             condition.domains = permittedDomains;
         }
 
-        // TODO
+        // FIXME
         //  - The entries must consist of only ascii characters.
         //  - Use punycode encoding for internationalized domains.
         // set excludedDomains
@@ -213,32 +233,24 @@ export class DeclarativeConverter {
             condition.excludedDomains = excludedDomains;
         }
 
+        // set excludedResourceTypes
+        const restrictedRequestTypes = rule.getRestrictedRequestTypes();
+        const hasExcludedResourceTypes = restrictedRequestTypes !== 0;
+        if (hasExcludedResourceTypes) {
+            condition.excludedResourceTypes = this.getResourceTypes(restrictedRequestTypes);
+        }
+
+        // set resourceTypes
+        const permittedRequestTypes = rule.getPermittedRequestTypes();
+        if (!hasExcludedResourceTypes && permittedRequestTypes !== 0) {
+            condition.resourceTypes = this.getResourceTypes(permittedRequestTypes);
+        }
+
         // eslint-disable-next-line no-param-reassign
-        return { ...declarativeRule, condition };
+        return condition;
     }
 
-    toDeclarativeRule(rowRule: RowRule): Rule {
-        const {
-            id,
-            priority,
-            action,
-            condition,
-        } = rowRule;
-
-        if (!id || !action || !condition) {
-            throw new Error('id, action and condition are required');
-        }
-
-        const result: Rule = { id, action, condition };
-
-        if (priority) {
-            result.priority = rowRule.priority;
-        }
-
-        return result;
-    }
-
-    convert(ruleText: string, id: number): Rule | null {
+    convert(ruleText: string, id: number): DeclarativeRule | null {
         // TODO RuleConverter.convertRule before creating rule
         const rule = RuleFactory.createRule(ruleText, 1);
 
@@ -247,14 +259,16 @@ export class DeclarativeConverter {
             return null;
         }
 
-        let rowRule: RowRule = {
-            id,
-        };
+        const declarativeRule = {} as DeclarativeRule;
 
-        rowRule = this.setPriority(rowRule, rule);
-        rowRule = this.setAction(rowRule, rule);
-        rowRule = this.setCondition(rowRule, rule);
+        const priority = this.getPriority(rule);
+        if (priority) {
+            declarativeRule.priority = priority;
+        }
+        declarativeRule.id = id;
+        declarativeRule.action = this.getAction(rule);
+        declarativeRule.condition = this.getCondition(rule);
 
-        return this.toDeclarativeRule(rowRule);
+        return declarativeRule;
     }
 }
