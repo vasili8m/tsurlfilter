@@ -163,9 +163,9 @@ export class DeclarativeConverter {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getPriority(rule: NetworkRule): number {
+    getPriority(rule: NetworkRule): number | null {
         // TODO set priority
-        return 1;
+        return null;
     }
 
     getAction(rule: NetworkRule): RuleAction {
